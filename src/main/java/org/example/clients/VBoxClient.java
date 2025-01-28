@@ -3,11 +3,13 @@ package org.example.clients;
 import org.example.configurations.VBoxConfig;
 import org.example.models.VirtualMachine;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 
+@Component
 public class VBoxClient {
     private final VBoxConfig vBoxConfig;
 
@@ -16,35 +18,27 @@ public class VBoxClient {
         this.vBoxConfig = vBoxConfig;
     }
 
-    /**
-     * Создание виртуальной машины на основе образа.
-     */
-    public VirtualMachine createVirtualMachine(VirtualMachine virtualMachine) {
-        String fullPath = Paths.get(vBoxConfig.vboxPath, "VBoxManage").toString();
-        String command = String.format(
-                "%s import %s --vsys 0 --vmname \"%s\"",
+    public String createVirtualMachine(String virtualMachineName) {
+        var fullPath = Paths.get(vBoxConfig.vboxPath, "VBoxManage").toString();
+
+        var command = String.format(
+                "\"\"%s\" import %s --vsys 0 --vmname \"%s\"\"",
                 fullPath,
                 vBoxConfig.defaultImagePath,
-                virtualMachine.getName()
+                virtualMachineName
         );
 
         executeCommand(command);
-        System.out.println("Virtual Machine created: " + virtualMachine.getName());
-        return virtualMachine;
+
+        return virtualMachineName;
     }
 
-    /**
-     * Получение списка всех виртуальных машин.
-     */
     public void getVirtualMachines() {
         String fullPath = Paths.get(vBoxConfig.vboxPath, "VBoxManage").toString();
         String command = String.format("%s list vms", fullPath);
         executeCommand(command);
     }
 
-    /**
-     * Запуск виртуальной машины.
-     */
     public VirtualMachine startVirtualMachine(String name) {
         String fullPath = Paths.get(vBoxConfig.vboxPath, "VBoxManage").toString();
         String command = String.format("%s startvm \"%s\" --type headless", fullPath, name);
@@ -53,9 +47,6 @@ public class VBoxClient {
         return new VirtualMachine();
     }
 
-    /**
-     * Получение IP-адреса запущенной виртуальной машины.
-     */
     public String getVirtualMachineIp(String name) {
         String fullPath = Paths.get(vBoxConfig.vboxPath, "VBoxManage").toString();
         String command = String.format("%s guestproperty enumerate \"%s\"", fullPath, name);
@@ -92,12 +83,9 @@ public class VBoxClient {
         return ipAddress;
     }
 
-    /**
-     * Универсальный метод выполнения консольной команды.
-     */
     public static void executeCommand(String command) {
         try {
-            String os = System.getProperty("os.name").toLowerCase();
+            var os = System.getProperty("os.name").toLowerCase();
             ProcessBuilder processBuilder;
 
             if (os.contains("win")) {
@@ -106,6 +94,7 @@ public class VBoxClient {
                 processBuilder = new ProcessBuilder("bash", "-c", command);
             }
 
+            var e = processBuilder.command();
             Process process = processBuilder.start();
 
             // Чтение стандартного вывода
