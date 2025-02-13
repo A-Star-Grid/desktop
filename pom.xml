@@ -194,6 +194,13 @@
             <version>6.2.4.Final</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- JWT (Json Web Token) библиотека -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>0.12.6</version>
+        </dependency>
     </dependencies>
 
     <build>

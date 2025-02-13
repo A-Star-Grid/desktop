@@ -2,16 +2,23 @@ package org.example.controllers;
 
 import org.example.services.ProjectService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/project")
 public class ProjectController {
-    private ProjectService projectService;
+    private final ProjectService projectService;
 
     @Autowired
-    public ProjectController(ProjectService projectService){
+    public ProjectController(ProjectService projectService) {
         this.projectService = projectService;
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<String> getProjects(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int perPage) {
+        return projectService.getProjects(page, perPage);
     }
 }
