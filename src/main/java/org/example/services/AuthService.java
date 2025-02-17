@@ -34,38 +34,8 @@ public class AuthService {
         }
     }
 
-    /**
-     * Получение accessToken, обновление при необходимости.
-     */
-    public String getAccessToken() {
-        String accessToken = preferencesStorage.loadAccessToken();
-        if (accessToken != null) {
-            return accessToken;
-        }
-
-        // Если accessToken истек, пробуем обновить через refreshToken
-        String refreshToken = preferencesStorage.loadRefreshToken();
-        if (refreshToken != null) {
-            return refreshAccessToken(refreshToken);
-        }
-
-        return null; // Нужна повторная авторизация
-    }
-
-    /**
-     * Обновление accessToken через refreshToken.
-     */
-    private String refreshAccessToken(String refreshToken) {
-        var refreshResponse = serverClient.refresh(refreshToken).block();
-
-        preferencesStorage.saveTokens(refreshResponse.getAccessToken(), refreshResponse.getRefreshToken());
-
-        return refreshResponse.getAccessToken();
-    }
-
     public User getUser() {
-        var jwt = preferencesStorage.loadAccessToken();
-        var t = serverClient.getUser(jwt);
+        var t = serverClient.getUser();
         return  t.block();
     }
 }

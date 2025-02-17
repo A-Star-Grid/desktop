@@ -9,15 +9,16 @@ import reactor.core.publisher.Mono;
 @Service
 public class ProjectService {
     private final ServerClient serverClient;
+    private final PreferencesStorage preferencesStorage;
 
     @Autowired
-    public ProjectService(ServerClient serverClient) {
+    public ProjectService(ServerClient serverClient, PreferencesStorage preferencesStorage) {
         this.serverClient = serverClient;
+        this.preferencesStorage = preferencesStorage;
     }
 
     public ResponseEntity<String> getProjects(int page, int perPage) {
-
-        Mono<String> projectsMono = serverClient.getProjects(token, page, perPage);
+        Mono<String> projectsMono = serverClient.getProjects(page, perPage);
         String projects = projectsMono.block(); // Блокируем, чтобы получить результат
 
         if (projects != null) {
