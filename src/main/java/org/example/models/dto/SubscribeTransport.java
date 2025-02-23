@@ -1,72 +1,37 @@
 package org.example.models.dto;
 
+import org.example.models.ComputeResource;
+import org.example.models.shedule.ScheduleInterval;
+
+import java.util.List;
 import java.util.UUID;
 
 public class SubscribeTransport {
-    private Integer cpuCores;
-    private String  cronSchedule;
-    private Integer diskSpace;
-    private Integer projectId;
-    private Integer ram;
-    private UUID deviceUUID;
+    private List<ScheduleInterval> scheduleIntervals;
+    private UUID deviceUuid;
 
     public SubscribeTransport() {
     }
 
-    public SubscribeTransport(SubscribeRequest subscribeRequest, UUID deviceUUID){
-        cpuCores = subscribeRequest.getCpuCores();
-        cronSchedule = subscribeRequest.getCronSchedule();
-        diskSpace = subscribeRequest.getDiskSpace();
-        projectId = subscribeRequest.getProjectId();
-        ram = subscribeRequest.getRam();
-        this.deviceUUID = deviceUUID;
+    public SubscribeTransport(SubscribeRequest subscribeRequest, UUID deviceUuid){
+        scheduleIntervals = subscribeRequest.getScheduleIntervals();
+        this.deviceUuid = deviceUuid;
     }
 
-    public Integer getCpuCores() {
-        return cpuCores;
+
+    public List<ScheduleInterval> getScheduleIntervals() {
+        return scheduleIntervals;
     }
 
-    public void setCpuCores(Integer cpuCores) {
-        this.cpuCores = cpuCores;
+    public void setScheduleIntervals(List<ScheduleInterval> cronSchedule) {
+        this.scheduleIntervals = cronSchedule;
     }
 
-    public String getCronSchedule() {
-        return cronSchedule;
+    public UUID getDeviceUuid() {
+        return deviceUuid;
     }
 
-    public void setCronSchedule(String cronSchedule) {
-        this.cronSchedule = cronSchedule;
-    }
-
-    public Integer getDiskSpace() {
-        return diskSpace;
-    }
-
-    public void setDiskSpace(Integer diskSpace) {
-        this.diskSpace = diskSpace;
-    }
-
-    public Integer getProjectId() {
-        return projectId;
-    }
-
-    public void setProjectId(Integer projectId) {
-        this.projectId = projectId;
-    }
-
-    public Integer getRam() {
-        return ram;
-    }
-
-    public void setRam(Integer ram) {
-        this.ram = ram;
-    }
-
-    public UUID getDeviceUUID() {
-        return deviceUUID;
-    }
-
-    public void setDeviceUUID(UUID deviceUUID) {
-        this.deviceUUID = deviceUUID;
+    public void setDeviceUuid(UUID deviceUuid) {
+        this.deviceUuid = deviceUuid;
     }
 }

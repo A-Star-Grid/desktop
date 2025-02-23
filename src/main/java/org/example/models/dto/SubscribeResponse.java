@@ -1,34 +1,19 @@
 package org.example.models.dto;
 
+import org.example.models.shedule.ScheduleInterval;
+
+import java.util.List;
+
 public class SubscribeResponse {
-    private Integer cpuCores;
-    private String  cronSchedule;
-    private Integer diskSpace;
+    private List<ScheduleInterval> scheduleIntervals;
     private Integer projectId;
-    private Integer ram;
 
-    public Integer getCpuCores() {
-        return cpuCores;
+    public List<ScheduleInterval> getScheduleIntervals() {
+        return scheduleIntervals;
     }
 
-    public void setCpuCores(Integer cpuCores) {
-        this.cpuCores = cpuCores;
-    }
-
-    public String getCronSchedule() {
-        return cronSchedule;
-    }
-
-    public void setCronSchedule(String cronSchedule) {
-        this.cronSchedule = cronSchedule;
-    }
-
-    public Integer getDiskSpace() {
-        return diskSpace;
-    }
-
-    public void setDiskSpace(Integer diskSpace) {
-        this.diskSpace = diskSpace;
+    public void setScheduleIntervals(List<ScheduleInterval> cronSchedule) {
+        this.scheduleIntervals = cronSchedule;
     }
 
     public Integer getProjectId() {
@@ -37,13 +22,5 @@ public class SubscribeResponse {
 
     public void setProjectId(Integer projectId) {
         this.projectId = projectId;
-    }
-
-    public Integer getRam() {
-        return ram;
-    }
-
-    public void setRam(Integer ram) {
-        this.ram = ram;
     }
 }
