@@ -9,6 +9,7 @@ import java.util.UUID;
 public class SubscribeTransport {
     private List<ScheduleInterval> scheduleIntervals;
     private UUID deviceUuid;
+    private Integer projectId;
 
     public SubscribeTransport() {
     }
@@ -16,8 +17,16 @@ public class SubscribeTransport {
     public SubscribeTransport(SubscribeRequest subscribeRequest, UUID deviceUuid){
         scheduleIntervals = subscribeRequest.getScheduleIntervals();
         this.deviceUuid = deviceUuid;
+        this.projectId = subscribeRequest.getProjectId();
     }
 
+    public Integer getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(Integer projectId) {
+        this.projectId = projectId;
+    }
 
     public List<ScheduleInterval> getScheduleIntervals() {
         return scheduleIntervals;

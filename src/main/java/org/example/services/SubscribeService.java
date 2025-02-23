@@ -10,9 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 @Service
 public class SubscribeService {
@@ -29,11 +27,11 @@ public class SubscribeService {
         this.settingService = settingService;
     }
 
-    public ResponseEntity<List<SubscribeResponse>> getSubscribes() {
+    public List<SubscribeResponse> getSubscribes() {
         var projectsMono = serverClient.getSubscribes(preferencesStorage.getDeviceUUID());
         var projects = projectsMono.block();
 
-        return ResponseEntity.ok(projects);
+        return projects;
     }
 
     public ResponseEntity<String> unsubscribeFromProject(Integer id) {
@@ -63,14 +61,26 @@ public class SubscribeService {
     }
 
     private void checkResourceLimits(List<SubscribeResponse> existingSubscriptions, SubscribeRequest newRequest) {
-        var resourceTimeline = new TreeMap<ScheduleTimeStamp, ComputeResource>();
+        var resourceTimeline = new TreeMap<ScheduleTimeStamp, Set<ComputeResource>>();
+
+        var newRequestScheduleIntervals = newRequest.getScheduleIntervals();
+        for (var interval : newRequestScheduleIntervals) {
+            resourceTimeline.computeIfAbsent(interval.getStart(), key -> new HashSet<>())
+                        .add(new ComputeResource(interval.getComputeResource()));
+
+            resourceTimeline.computeIfAbsent(interval.getEnd(), key -> new HashSet<>())
+                    .add(new ComputeResource(interval.getComputeResource()).negative());
+        }
 
         for (var subscription : existingSubscriptions) {
             var intervals = subscription.getScheduleIntervals();
             for (var interval : intervals) {
-                resourceTimeline.put(interval.getStart(), interval.getComputeResource());
-                resourceTimeline.put(interval.getEnd(), interval.getComputeResource().negative());
-            }
+                resourceTimeline.computeIfAbsent(interval.getStart(), key -> new HashSet<>())
+                        .add(new ComputeResource(interval.getComputeResource()));
+
+                resourceTimeline.computeIfAbsent(interval.getEnd(), key -> new HashSet<>())
+                        .add(new ComputeResource(interval.getComputeResource()).negative());
+             }
         }
 
         var maxComputeResource = getMaxResourceUsage(resourceTimeline);
@@ -83,14 +93,16 @@ public class SubscribeService {
         }
     }
 
-    private ComputeResource getMaxResourceUsage(TreeMap<ScheduleTimeStamp, ComputeResource> resourceTimeline) {
+    private ComputeResource getMaxResourceUsage(TreeMap<ScheduleTimeStamp, Set<ComputeResource>> resourceTimeline) {
         var currentResource = new ComputeResource();
         var maxComputeResource = new ComputeResource();
 
-        for (Map.Entry<ScheduleTimeStamp, ComputeResource> entry : resourceTimeline.entrySet()) {
-            var resource = entry.getValue();
-            currentResource.add(resource);
-            maxComputeResource = ComputeResource.max(currentResource, maxComputeResource);
+        for (Map.Entry<ScheduleTimeStamp, Set<ComputeResource>> entry : resourceTimeline.entrySet()) {
+            var resources = entry.getValue();
+            for(var resource : resources){
+                currentResource.add(resource);
+                maxComputeResource = ComputeResource.max(currentResource, maxComputeResource);
+            }
         }
 
         return maxComputeResource;

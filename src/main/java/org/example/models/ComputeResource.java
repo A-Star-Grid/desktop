@@ -17,6 +17,12 @@ public class ComputeResource {
         this.ram = ram;
     }
 
+    public ComputeResource(ComputeResource computeResource) {
+        this.cpuCores = computeResource.cpuCores;
+        this.diskSpace = computeResource.diskSpace;
+        this.ram = computeResource.ram;
+    }
+
     public ComputeResource add(ComputeResource other) {
         this.cpuCores += other.cpuCores;
         this.diskSpace += other.diskSpace;

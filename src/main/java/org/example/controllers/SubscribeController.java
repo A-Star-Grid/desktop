@@ -26,7 +26,7 @@ public class SubscribeController {
 
     @GetMapping("/subscribes_list")
     public ResponseEntity<List<SubscribeResponse>> getSubscribes() {
-        return subscribeService.getSubscribes();
+        return ResponseEntity.ok(subscribeService.getSubscribes());
     }
 
     @PostMapping("/unsubscribe")
