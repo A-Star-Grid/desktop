@@ -1,4 +1,4 @@
-package org.example.models;
+package org.example.models.dto;
 
 public class RefreshRequest {
     private String refreshToken;

@@ -1,4 +1,4 @@
-package org.example.models;
+package org.example.models.dto;
 
 public class LoginRequest {
     private String username;

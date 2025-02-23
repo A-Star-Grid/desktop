@@ -1,7 +1,7 @@
 package org.example.services;
 
 import org.example.clients.ServerClient;
-import org.example.models.LoginResponse;
+import org.example.models.dto.LoginResponse;
 import org.example.models.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

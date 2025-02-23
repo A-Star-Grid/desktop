@@ -1,4 +1,6 @@
-package org.example.models;
+package org.example.models.dto;
+
+import org.example.models.User;
 
 public class UserResponse {
     public UserResponse() {

@@ -1,7 +1,6 @@
 package org.example.controllers;
 
-import org.example.models.User;
-import org.example.models.UserResponse;
+import org.example.models.dto.UserResponse;
 import org.example.services.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

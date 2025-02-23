@@ -2,6 +2,7 @@ package org.example.clients;
 
 import org.example.configurations.AppSettings;
 import org.example.models.*;
+import org.example.models.dto.*;
 import org.example.services.PreferencesStorage;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
+import java.util.List;
 
 @Service
 public class ServerClient {
@@ -57,40 +59,50 @@ public class ServerClient {
         return sendRequestWithRetry(webClient.get().uri(uri), responseType);
     }
 
+    private <T> Mono<T> postWithRetry(String uri, Class<T> responseType) {
+        return sendRequestWithRetry(webClient.post().uri(uri), responseType);
+    }
+
+    private <T, U> Mono<T> postWithRetry(String uri, Class<T> responseType, Class<U> requestType, U requestBody) {
+        return sendRequestWithRetry(webClient
+                .post()
+                .uri(uri)
+                .body(Mono.just(requestBody), responseType), responseType);
+    }
+
     private <T> Mono<T> sendRequestWithRetry(WebClient.RequestHeadersSpec<?> request, Class<T> responseType) {
         return request
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + preferencesStorage.loadAccessToken()) // Добавляем токен
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + preferencesStorage.loadAccessToken())
                 .retrieve()
-                .onStatus(httpStatus -> httpStatus.value() == 401, response -> handleUnauthorized()) // Если 401 – обновляем токен
+                .onStatus(httpStatus -> httpStatus.value() == 401, response -> handleUnauthorized())
                 .bodyToMono(responseType)
-                .retryWhen(Retry.backoff(1, Duration.ofMillis(500))); // Пробуем еще раз
+                .retryWhen(Retry.backoff(1, Duration.ofMillis(500)));
     }
 
     private Mono<? extends Throwable> handleUnauthorized() {
-        String refreshToken = preferencesStorage.loadRefreshToken();
+        var refreshToken = preferencesStorage.loadRefreshToken();
+
         if (refreshToken == null) {
             return Mono.error(new RuntimeException("Unauthorized and no refresh token available"));
         }
+
         return refresh(refreshToken).flatMap(response -> {
             preferencesStorage.saveTokens(response.getAccessToken(), response.getRefreshToken());
             return Mono.empty();
         });
     }
 
-    public Mono<String> subscribeToProject(String token, int projectId) {
-        return webClient.post()
-                .uri("/subscribe/" + projectId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                .retrieve()
-                .bodyToMono(String.class);
+    public Mono<SubscribeResponse> subscribeToProject(SubscribeTransport subscribeTransport) {
+        return postWithRetry("/subscribe/", SubscribeResponse.class, SubscribeTransport.class, subscribeTransport);
     }
 
-    public Mono<String> unsubscribeFromProject(String token, int projectId) {
-        return webClient.post()
-                .uri("/unsubscribe/" + projectId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                .retrieve()
-                .bodyToMono(String.class);
+    public Mono<List<SubscribeResponse>> getSubscribes() {
+        return getWithRetry("/subscriptions", SubscribeResponse[].class)
+                .map(List::of);
+    }
+
+    public Mono<String> unsubscribeFromProject(int projectId) {
+        return postWithRetry("/unsubscribe/" + projectId, String.class);
     }
 
     public Mono<String> getUserSubscriptions(String token) {
