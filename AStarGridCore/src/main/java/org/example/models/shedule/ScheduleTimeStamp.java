@@ -3,6 +3,7 @@ package org.example.models.shedule;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Objects;
 
 public class ScheduleTimeStamp implements Comparable<ScheduleTimeStamp>{
     private Day day;
@@ -46,6 +47,25 @@ public class ScheduleTimeStamp implements Comparable<ScheduleTimeStamp>{
             case SUNDAY -> Day.Sunday;
             default -> throw new IllegalStateException("Unexpected value: " + dayOfWeek);
         };
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        var timeStamp = (ScheduleTimeStamp) o;
+        return Objects.equals(day, timeStamp.day) &&
+                Objects.equals(time, timeStamp.time);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(day, time);
+    }
+
+    public Day getDay() {
+        return this.day;
     }
 
     public void setDay(Day day) {

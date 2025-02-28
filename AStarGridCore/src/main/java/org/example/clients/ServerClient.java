@@ -5,18 +5,20 @@ import org.example.models.*;
 import org.example.models.dto.*;
 import org.example.services.PreferencesStorage;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
 
-import java.time.Duration;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
-public class ServerClient extends ServerClientBase{
+public class ServerClient extends ServerClientBase {
     public ServerClient(WebClient.Builder webClientBuilder,
                         AppSettings appSettings,
                         PreferencesStorage preferencesStorage) {
@@ -52,7 +54,22 @@ public class ServerClient extends ServerClientBase{
     public Mono<String> unsubscribeFromProject(int projectId, UUID deviceUUID) {
         return postWithRetry(
                 "/unsubscribe?project_id=" + projectId
-                +"&device_uuid=" + deviceUUID, String.class);
+                        + "&device_uuid=" + deviceUUID, String.class);
+    }
+
+    public Mono<Void> downloadTaskArchive(UUID taskUUID, String saveDirectory, String fileName) {
+        return getFileWithRetry(
+                "/download?task_uuid=" + taskUUID,
+                saveDirectory,
+                fileName);
+    }
+
+    public Mono<CurrentTaskResponse> getCurrentTask(int projectId, UUID deviceUUID) {
+        return getWithRetry(
+                "/get_current_task?project_id=" + projectId +
+                "&device_uuid=" + deviceUUID,
+                CurrentTaskResponse.class
+        );
     }
 }
 

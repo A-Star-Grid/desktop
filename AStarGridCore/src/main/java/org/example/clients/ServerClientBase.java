@@ -5,10 +5,15 @@ import org.example.models.dto.RefreshRequest;
 import org.example.models.dto.RefreshResponse;
 import org.example.services.PreferencesStorage;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
 
@@ -29,39 +34,13 @@ public class ServerClientBase {
         return sendRequestWithRetry(webClient.get().uri(uri), responseType);
     }
 
+    protected Mono<Void> getFileWithRetry(String uri, String saveDirectory, String fileName) {
+        return sendRequestWithRetry(webClient.get().uri(uri), byte[].class)
+                .flatMap(fileData -> saveFile(fileData, saveDirectory, fileName));
+    }
+
     protected <T> Mono<T> postWithRetry(String uri, Class<T> responseType) {
         return sendRequestWithRetry(webClient.post().uri(uri), responseType);
-    }
-
-    /**
-     * Перегруженная версия getWithRetry с параметрами запроса
-     */
-    protected <T> Mono<T> getWithRetry(String uri, Mono<Map<String, String>> queryParams, Class<T> responseType) {
-        return queryParams.flatMap(params -> {
-            WebClient.RequestHeadersUriSpec<?> uriSpec = webClient.get();
-            WebClient.RequestHeadersSpec<?> requestSpec = uriSpec.uri(builder -> {
-                builder.path(uri);
-                params.forEach(builder::queryParam);
-                return builder.build();
-            });
-
-            return sendRequestWithRetry(requestSpec, responseType);
-        });
-    }
-
-    /**
-     * Перегруженная версия postWithRetry с параметрами запроса
-     */
-    protected <T> Mono<T> postWithRetry(String uri, Mono<Map<String, String>> queryParams, Class<T> responseType) {
-        return queryParams.flatMap(params -> {
-            WebClient.UriSpec<WebClient.RequestBodySpec> uriSpec = webClient.post();
-            WebClient.RequestBodySpec requestSpec = uriSpec.uri(builder -> {
-                builder.path(uri);
-                params.forEach(builder::queryParam);
-                return builder.build();
-            });
-            return sendRequestWithRetry(requestSpec, responseType);
-        });
     }
 
     protected <T, U> Mono<T> postWithRetry(String uri, Class<T> responseType, Class<U> requestType, U requestBody) {
@@ -101,5 +80,25 @@ public class ServerClientBase {
                 .retrieve()
                 .bodyToMono(RefreshResponse.class)
                 .doOnNext(response -> preferencesStorage.saveTokens(response.getAccessToken(), response.getRefreshToken())); // Обновляем токены
+    }
+
+    private Mono<Void> saveFile(byte[] fileData, String directory, String fileName) {
+        return Mono.fromRunnable(() -> {
+            try {
+                var folder = new File(directory);
+
+                if (!folder.exists()) {
+                    folder.mkdirs();
+                }
+
+                var file = Paths.get(directory, fileName).toFile();
+
+                try (var fos = new FileOutputStream(file)) {
+                    fos.write(fileData);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Error saving file: " + e.getMessage(), e);
+            }
+        });
     }
 }

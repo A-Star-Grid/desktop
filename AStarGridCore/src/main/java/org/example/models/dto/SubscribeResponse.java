@@ -12,8 +12,8 @@ public class SubscribeResponse {
         return scheduleIntervals;
     }
 
-    public void setScheduleIntervals(List<ScheduleInterval> cronSchedule) {
-        this.scheduleIntervals = cronSchedule;
+    public void setScheduleIntervals(List<ScheduleInterval> intervals) {
+        this.scheduleIntervals = intervals;
     }
 
     public Integer getProjectId() {

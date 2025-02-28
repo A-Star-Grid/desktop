@@ -1,6 +1,9 @@
 package org.example.models.shedule;
 
 import org.example.models.ComputeResource;
+import org.example.models.ComputingTask;
+
+import java.util.Objects;
 
 public class ScheduleInterval {
     ScheduleTimeStamp start;
@@ -10,6 +13,21 @@ public class ScheduleInterval {
 
     public boolean contains(ScheduleTimeStamp timestamp) {
         return start.compareTo(timestamp) <= 0 && end.compareTo(timestamp) > 0;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        var interval = (ScheduleInterval) o;
+        return Objects.equals(start, interval.start) &&
+                Objects.equals(end, interval.end);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(start, end);
     }
 
     public ScheduleTimeStamp getStart() {
