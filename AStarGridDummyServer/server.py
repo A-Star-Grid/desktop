@@ -4,6 +4,7 @@ import datetime
 import os
 from functools import wraps
 from flasgger import Swagger
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -197,7 +198,7 @@ def get_projects(decoded_token):
     """
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 3, type=int)
-
+    
     total_projects = len(PROJECTS)
     total_pages = (total_projects + per_page - 1) // per_page  # Вычисляем общее число страниц
 
@@ -323,12 +324,12 @@ def subscribe(decoded_token):
                       ram:
                         type: integer
     responses:
-      200:
+      200: 
         description: Subscription successful
     """
 
     data = request.get_json()
-
+    
     device_uuid = data.get("deviceUuid")
     project_id = data.get("projectId")
     schedule_intervals = data.get("scheduleIntervals")
@@ -357,7 +358,7 @@ def get_subscriptions(decoded_token):
     security:
       - Bearer: []
     parameters:
-      - name: deviceUuid
+      - name: device_uuid
         in: query
         required: true
         type: string
@@ -459,50 +460,6 @@ def unsubscribe(decoded_token):
     return jsonify({'message': 'Subscription not found'}), 404
 
 
-
-@app.route('/tasks/<int:project_id>', methods=['GET'])
-@token_required
-def get_tasks(decoded_token, project_id):
-    """Get tasks for a project
-    ---
-    security:
-      - Bearer: []
-    parameters:
-      - name: project_id
-        in: path
-        required: true
-        type: integer
-    responses:
-      200:
-        description: Task details
-    """
-    if project_id in TASKS:
-        return jsonify(TASKS[project_id])
-    return jsonify({'message': 'Project not found'}), 404
-
-@app.route('/download/<int:project_id>', methods=['GET'])
-@token_required
-def download_data(decoded_token, project_id):
-    """Download task dataset
-    ---
-    security:
-      - Bearer: []
-    parameters:
-      - name: project_id
-        in: path
-        required: true
-        type: integer
-    responses:
-      200:
-        description: File download
-    """
-    filename = f'data_project_{project_id}.zip'
-    filepath = os.path.join('data', filename)
-    if os.path.exists(filepath):
-        return send_file(filepath, as_attachment=True)
-    return jsonify({'message': 'File not found'}), 404
-
-
 @app.route('/user', methods=['GET'])
 @token_required
 def get_user(decoded_token):
@@ -516,7 +473,150 @@ def get_user(decoded_token):
     """
     return jsonify({'username': decoded_token['user']}), 200
 
+TASK_MAPPING = {
+    1: "286da1e4-fbef-4243-b1ac-d385da123ee0",
+    2: "53420001-ad7a-4681-b48b-a6704cb502b6",
+    3: "11c3c920-1045-4fbf-95c7-48d30abbade1",
+    4: "202d816a-054d-4252-bb4c-adcaa0aa7d88",
+    5: "1d299e40-033f-490d-9d68-666a4c444f61",
+    6: "e2631ea9-ea83-4256-adf5-1fab6f95e754"
+}
+
+@app.route('/get_current_task', methods=['GET'])
+@token_required
+def get_current_task(decoded_token):
+    """
+    Get current task UUID for project
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: project_id
+        in: query
+        required: true
+        type: integer
+        description: ID of the project
+      - name: device_uuid
+        in: query
+        required: true
+        type: string
+        description: Unique identifier of the device
+    responses:
+      200:
+        description: Task UUID response
+        schema:
+          properties:
+            taskUuid:
+              type: string
+      400:
+        description: Missing parameters
+      404:
+        description: Task not found for project
+    """
+    project_id = request.args.get("project_id", type=int)
+    device_uuid = request.args.get("device_uuid")
+
+    if project_id is None or not device_uuid:
+        return jsonify({'message': 'project_id and device_uuid are required'}), 400
+
+    task_uuid = TASK_MAPPING.get(project_id)
+    
+    if not task_uuid:
+        return jsonify({'message': 'Task not found for this project'}), 404
+
+    return jsonify({'taskUuid': task_uuid}), 200
+
+
+@app.route('/download', methods=['GET'])
+@token_required
+def download_task(decoded_token):
+    """
+    Download task archive
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: task_uuid
+        in: query
+        required: true
+        type: string
+        description: UUID of the task
+    responses:
+      200:
+        description: Task archive file
+      400:
+        description: Missing parameters
+      404:
+        description: File not found
+    """
+    task_uuid = request.args.get("task_uuid")
+
+    if not task_uuid:
+        return jsonify({'message': 'task_uuid is required'}), 400
+
+    filename = f"{task_uuid}.zip"
+    file_path = os.path.join("data", filename)
+
+    if not os.path.exists(file_path):
+        return jsonify({'message': 'File not found'}), 404
+
+    return send_file(file_path, as_attachment=True)
+
+
+@app.route('/upload_result', methods=['POST'])
+@token_required
+def upload_result(decoded_token):
+    """
+    Upload result archive
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: task_uuid
+        in: query
+        required: true
+        type: string
+      - name: project_id
+        in: query
+        required: true
+        type: integer
+      - name: device_uuid
+        in: query
+        required: true
+        type: string
+      - name: file
+        in: formData
+        type: file
+        required: true
+    responses:
+      200:
+        description: File uploaded successfully
+      400:
+        description: Missing parameters or file
+    """
+    task_uuid = request.args.get("task_uuid")
+    project_id = request.args.get("project_id", type=int)
+    device_uuid = request.args.get("device_uuid")
+    file = request.files.get("file")
+
+    if None in [task_uuid, project_id, device_uuid] or not file:
+        return jsonify({'message': 'task_uuid, project_id, device_uuid and file are required'}), 400
+
+    os.makedirs("results", exist_ok=True)
+    save_path = os.path.join("results", f"{task_uuid}_{device_uuid}.zip")
+    file.save(save_path)
+
+    return jsonify({
+        'message': f'Result for task {task_uuid} uploaded successfully',
+        'project_id': project_id,
+        'device_uuid': device_uuid
+    }), 200
+
 if __name__ == '__main__':
     os.makedirs('data', exist_ok=True)
     os.makedirs('results', exist_ok=True)
     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
