@@ -21,6 +21,18 @@ public class VBoxManageCommandBuilder {
         return this;
     }
 
+    public VBoxManageCommandBuilder addCommandEdge(){
+        var osName = System.getProperty("os.name").toLowerCase();
+
+        if (osName.contains("win")) {
+            commandParts.add("&");
+        } else {
+            commandParts.add(";");
+        }
+
+        return this;
+    }
+
     public VBoxManageCommandBuilder createFromOVA(String ovaPath, String vmName) {
         commandParts.add("import");
         commandParts.add(escapeArgument(ovaPath));
@@ -28,6 +40,15 @@ public class VBoxManageCommandBuilder {
         commandParts.add("0");
         commandParts.add("--vmname");
         commandParts.add(escapeArgument(vmName));
+        return this;
+    }
+
+    public VBoxManageCommandBuilder addSharedFolder(String path, String vmName){
+        commandParts.add("sharedfolder add");
+        commandParts.add(escapeArgument(vmName));
+        commandParts.add("--name \"shared\"");
+        commandParts.add("--hostpath" + escapeArgument(path));
+        commandParts.add("--automount");
         return this;
     }
 
@@ -45,7 +66,7 @@ public class VBoxManageCommandBuilder {
         return this;
     }
 
-    public VBoxManageCommandBuilder guestpropertyEnumerate(String vmName) {
+    public VBoxManageCommandBuilder guestPropertyEnumerate(String vmName) {
         commandParts.add("guestproperty");
         commandParts.add("enumerate");
         commandParts.add(escapeArgument(vmName));

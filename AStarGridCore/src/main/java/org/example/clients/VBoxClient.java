@@ -31,9 +31,9 @@ public class VBoxClient {
         this.commandExecutor = commandExecutor;
     }
 
-    public void createVirtualMachineIfNotExist(String virtualMachineName) {
+    public boolean createVirtualMachineIfNotExist(String virtualMachineName) {
         if (virtualMachineIsExist((virtualMachineName))) {
-            return;
+            return false;
         }
 
         var commandBuilder = VBoxManageCommandBuilder.create();
@@ -50,6 +50,8 @@ public class VBoxClient {
         } catch (Exception e) {
             throw new RuntimeException();
         }
+
+        return true;
     }
 
     public void startVirtualMachineIfNotRunning(String virtualMachineName) {
@@ -73,6 +75,26 @@ public class VBoxClient {
         }
 
         waitForVirtualMachineState(virtualMachineName, VirtualMachineState.RUNNING, 60);
+    }
+
+    public void addSharedFolderToVirtualMachine(String virtualMachineName) {
+        var states = List.of(VirtualMachineState.POWEROFF);
+
+        if (!virtualMachineCheckState(virtualMachineName, states)) {
+            throw new IllegalStateException("Невозможно монтировать папку в уже запущенную машину");
+        }
+
+        var commandBuilder = VBoxManageCommandBuilder.create();
+
+        var command = commandBuilder
+                .executable(settingService.getVirtualBoxPath())
+                .addSharedFolder(vBoxConfig.sharedFolder, virtualMachineName)
+                .toString();
+        try {
+            commandExecutor.executeCommand(command);
+        } catch (Exception e) {
+            throw new RuntimeException();
+        }
     }
 
     public void stopVirtualMachine(String virtualMachineName) {

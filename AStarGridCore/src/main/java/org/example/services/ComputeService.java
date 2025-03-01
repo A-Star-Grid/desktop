@@ -53,7 +53,9 @@ public class ComputeService {
         }
 
         virtualMachineName = "vm-" + preferencesStorage.getDeviceUUID().toString();
-        vBoxClient.createVirtualMachineIfNotExist(virtualMachineName);
+        if(vBoxClient.createVirtualMachineIfNotExist(virtualMachineName)){
+            vBoxClient.addSharedFolderToVirtualMachine(virtualMachineName);
+        }
 
         var subscribes = subscribeService.getSubscribes();
         var currentTime = ScheduleTimeStamp.now();
