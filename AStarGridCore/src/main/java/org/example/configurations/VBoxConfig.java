@@ -7,4 +7,6 @@ import org.springframework.stereotype.Component;
 public class VBoxConfig {
     @Value("${vbox.default.image.path}")
     public String defaultImagePath;
+    @Value("${vbox.shared.folder}")
+    public String sharedFolder;
 }

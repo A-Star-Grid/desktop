@@ -1,4 +1,4 @@
-package org.example.models.commands.executor;
+package org.example.models.commands.host_executor;
 
 import org.springframework.context.annotation.Condition;
 import org.springframework.context.annotation.ConditionContext;

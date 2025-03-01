@@ -1,4 +1,4 @@
-package org.example.models.commands.executor;
+package org.example.models.commands.host_executor;
 
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;

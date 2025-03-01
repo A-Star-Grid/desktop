@@ -31,13 +31,17 @@ public class VBoxManageCommandBuilder {
         return this;
     }
 
-    public VBoxManageCommandBuilder startWithSharedFolder(String vmName, String sharedFolderName, String hostPath) {
+    public VBoxManageCommandBuilder getInfo(String vmName) {
+        commandParts.add("showvminfo");
+        commandParts.add(escapeArgument(vmName));
+        commandParts.add("--machinereadable");
+        return this;
+    }
+
+    public VBoxManageCommandBuilder start(String vmName) {
         commandParts.add("startvm");
         commandParts.add(escapeArgument(vmName));
-        commandParts.add("--shared-folder");
-        commandParts.add(String.format("%s,%s",
-                escapeArgument(hostPath),
-                escapeArgument(sharedFolderName)));
+        commandParts.add("--type headless");
         return this;
     }
 

@@ -25,6 +25,7 @@ public class ComputeService {
     private final PreferencesStorage preferencesStorage;
     private final SettingService settingService;
     private final VBoxClient vBoxClient;
+    private String virtualMachineName;
 
     private final ConcurrentHashMap<ComputingTask, Future<?>> runningTasks = new ConcurrentHashMap<>();
     private final ExecutorService executorService = Executors.newCachedThreadPool();
@@ -47,8 +48,12 @@ public class ComputeService {
     public void process() {
         if (!settingService.isComputationActive()) {
             cancelAllRunningTasks();
+            vBoxClient.stopVirtualMachine(virtualMachineName);
             return;
         }
+
+        virtualMachineName = "vm-" + preferencesStorage.getDeviceUUID().toString();
+        vBoxClient.createVirtualMachineIfNotExist(virtualMachineName);
 
         var subscribes = subscribeService.getSubscribes();
         var currentTime = ScheduleTimeStamp.now();
@@ -56,6 +61,8 @@ public class ComputeService {
         for (var subscribe : subscribes) {
             for (var interval : subscribe.getScheduleIntervals()) {
                 if (interval.contains(currentTime)) {
+                    vBoxClient.startVirtualMachineIfNotRunning(virtualMachineName);
+
                     var key = new ComputingTask(subscribe.getProjectId(), interval);
 
                     runningTasks.compute(key, (k, existingFuture) -> {
@@ -116,8 +123,6 @@ public class ComputeService {
                 ).block();
             }
 
-            vBoxClient.createVirtualMachineIfNotExist(preferencesStorage.getDeviceUUID().toString());
-
             System.out.println("✅ Завершено вычисление для проекта " + projectId);
         } catch (InterruptedException e) {
             System.out.println("⚠️ Задача прервана: " + projectId);
@@ -135,5 +140,6 @@ public class ComputeService {
 
     private void cleanupAfterCancel(Integer projectId) {
         System.out.println("🧹 Очистка ресурсов проекта " + projectId);
+        System.out.println("🧹 Завершена очистка ресурсов проекта " + projectId);
     }
 }
