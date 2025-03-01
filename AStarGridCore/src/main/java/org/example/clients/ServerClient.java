@@ -4,16 +4,10 @@ import org.example.configurations.AppSettings;
 import org.example.models.*;
 import org.example.models.dto.*;
 import org.example.services.PreferencesStorage;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
 

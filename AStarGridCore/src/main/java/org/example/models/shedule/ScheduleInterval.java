@@ -1,7 +1,6 @@
 package org.example.models.shedule;
 
 import org.example.models.ComputeResource;
-import org.example.models.ComputingTask;
 
 import java.util.Objects;
 

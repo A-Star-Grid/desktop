@@ -1,6 +1,7 @@
 package org.example.services;
 
 import org.example.clients.ServerClient;
+import org.example.clients.VBoxClient;
 import org.example.configurations.AppSettings;
 import org.example.models.ComputingTask;
 import org.example.models.shedule.ScheduleInterval;
@@ -18,28 +19,31 @@ import java.util.concurrent.Future;
 
 @Service
 public class ComputeService {
-    private AppSettings appSettings;
-    private SubscribeService subscribeService;
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final AppSettings appSettings;
+    private final SubscribeService subscribeService;
     private final ServerClient serverClient;
     private final PreferencesStorage preferencesStorage;
     private final SettingService settingService;
+    private final VBoxClient vBoxClient;
+
+    private final ConcurrentHashMap<ComputingTask, Future<?>> runningTasks = new ConcurrentHashMap<>();
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     public ComputeService(AppSettings appSettings,
                           SubscribeService subscribeService,
                           ServerClient serverClient,
                           PreferencesStorage preferencesStorage,
-                          SettingService settingService) {
+                          SettingService settingService,
+                          VBoxClient vBoxClient) {
         this.appSettings = appSettings;
         this.subscribeService = subscribeService;
         this.serverClient = serverClient;
         this.preferencesStorage = preferencesStorage;
         this.settingService = settingService;
+        this.vBoxClient = vBoxClient;
     }
 
-    private final ConcurrentHashMap<ComputingTask, Future<?>> runningTasks = new ConcurrentHashMap<>();
-
-    @Scheduled(fixedRateString = "${compute.process.interval}")
+    @Scheduled(fixedDelayString = "${compute.process.interval}")
     public void process() {
         if (!settingService.isComputationActive()) {
             cancelAllRunningTasks();
@@ -112,7 +116,7 @@ public class ComputeService {
                 ).block();
             }
 
-            Thread.sleep(10000);
+            vBoxClient.createVirtualMachineIfNotExist(preferencesStorage.getDeviceUUID().toString());
 
             System.out.println("✅ Завершено вычисление для проекта " + projectId);
         } catch (InterruptedException e) {

@@ -24,7 +24,7 @@ public class ComputeController {
     @PostMapping("/create")
     public VirtualMachine createVM()
     {
-        vBoxClient.createVirtualMachine("FromIp");
+        vBoxClient.createVirtualMachineIfNotExist("FromIp");
         return new VirtualMachine();
     }
 }
