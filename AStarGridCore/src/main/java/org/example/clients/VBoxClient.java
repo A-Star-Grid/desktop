@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 @Component
 public class VBoxClient {
@@ -118,6 +119,56 @@ public class VBoxClient {
         waitForVirtualMachineState(virtualMachineName, VirtualMachineState.POWEROFF, 60);
     }
 
+    public String getVirtualMachineIp(String name) {
+        if (!virtualMachineCheckState(name, List.of(VirtualMachineState.RUNNING))) {
+            throw new IllegalStateException("Машина не запущена, невозможно получить IP");
+        }
+
+        var commandBuilder = VBoxManageCommandBuilder.create();
+        var command = commandBuilder
+                .executable(settingService.getVirtualBoxPath())
+                .guestPropertyEnumerate(name)
+                .toString();
+
+        ArrayList<String> result;
+
+        try {
+            result = commandExecutor.executeCommand(command).get(0);
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при выполнении команды VBoxManage", e);
+        }
+
+        var ip = parseIpFromCommandOutput(result);
+
+        if (ip == null) {
+            throw new RuntimeException("Не удалось найти IP-адрес для машины " + name);
+        }
+
+        return ip;
+    }
+
+    private String parseIpFromCommandOutput(List<String> output) {
+        var ipPattern = ".*?=\\s*'((\\d{1,3}\\.){3}\\d{1,3})'.*";
+
+        for (String line : output) {
+            if (!line.contains("/VirtualBox/GuestInfo/Net/0/V4/IP")) {
+                continue;
+            }
+
+            var pattern = Pattern.compile(ipPattern);
+            var matcher = pattern.matcher(line);
+
+            if (matcher.matches()) {
+                String ip = matcher.group(1);
+                System.out.println("Найден IP-адрес: " + ip);
+                return ip;
+            }
+            System.out.println("IP-адрес не найден в строке.");
+        }
+
+        return null;
+    }
+
     private boolean virtualMachineIsExist(String name) {
         var commandBuilder = VBoxManageCommandBuilder.create();
         var command = commandBuilder
@@ -178,5 +229,4 @@ public class VBoxClient {
             scheduler.shutdown();
         }
     }
-
 }
