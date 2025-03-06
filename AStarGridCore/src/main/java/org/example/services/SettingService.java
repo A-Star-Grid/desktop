@@ -16,7 +16,7 @@ public class SettingService {
         return preferencesStorage.setRamLimit(ramMB);
     }
 
-    public boolean setCpuLimit(int cpuCount) {
+    public boolean setCpuLimit(double cpuCount) {
         return preferencesStorage.setCpuLimit(cpuCount);
     }
 
@@ -36,7 +36,7 @@ public class SettingService {
         return preferencesStorage.getRamLimit();
     }
 
-    public int getCpuLimit() {
+    public double getCpuLimit() {
         return preferencesStorage.getCpuLimit();
     }
 

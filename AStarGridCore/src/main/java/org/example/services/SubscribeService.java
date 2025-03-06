@@ -45,7 +45,7 @@ public class SubscribeService {
         }
     }
 
-    public ResponseEntity<String> subscribe(SubscribeRequest subscribeRequest) {
+    public String subscribe(SubscribeRequest subscribeRequest) {
         var currentSubscriptions = serverClient.getSubscribes(preferencesStorage.getDeviceUUID()).block();
 
         if (currentSubscriptions == null) {
@@ -54,10 +54,9 @@ public class SubscribeService {
 
         checkResourceLimits(currentSubscriptions, subscribeRequest);
 
-        return ResponseEntity.ok(
-                serverClient.subscribeToProject(
-                                new SubscribeTransport(subscribeRequest, preferencesStorage.getDeviceUUID()))
-                        .block());
+        return serverClient.subscribeToProject(
+                        new SubscribeTransport(subscribeRequest, preferencesStorage.getDeviceUUID()))
+                .block();
     }
 
     private void checkResourceLimits(List<SubscribeResponse> existingSubscriptions, SubscribeRequest newRequest) {
@@ -66,7 +65,7 @@ public class SubscribeService {
         var newRequestScheduleIntervals = newRequest.getScheduleIntervals();
         for (var interval : newRequestScheduleIntervals) {
             resourceTimeline.computeIfAbsent(interval.getStart(), key -> new HashSet<>())
-                        .add(new ComputeResource(interval.getComputeResource()));
+                    .add(new ComputeResource(interval.getComputeResource()));
 
             resourceTimeline.computeIfAbsent(interval.getEnd(), key -> new HashSet<>())
                     .add(new ComputeResource(interval.getComputeResource()).negative());
@@ -80,7 +79,7 @@ public class SubscribeService {
 
                 resourceTimeline.computeIfAbsent(interval.getEnd(), key -> new HashSet<>())
                         .add(new ComputeResource(interval.getComputeResource()).negative());
-             }
+            }
         }
 
         var maxComputeResource = getMaxResourceUsage(resourceTimeline);
@@ -99,7 +98,7 @@ public class SubscribeService {
 
         for (Map.Entry<ScheduleTimeStamp, Set<ComputeResource>> entry : resourceTimeline.entrySet()) {
             var resources = entry.getValue();
-            for(var resource : resources){
+            for (var resource : resources) {
                 currentResource.add(resource);
                 maxComputeResource = ComputeResource.max(currentResource, maxComputeResource);
             }

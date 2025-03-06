@@ -26,7 +26,7 @@ public class SettingController {
     }
 
     @PostMapping("/cpu")
-    public ResponseEntity<String> setCpuLimit(@RequestParam int cpuCount) {
+    public ResponseEntity<String> setCpuLimit(@RequestParam double cpuCount) {
         if (settingService.setCpuLimit(cpuCount)) {
             return ResponseEntity.ok("CPU limit set successfully.");
         }

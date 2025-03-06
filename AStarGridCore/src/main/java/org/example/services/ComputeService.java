@@ -4,7 +4,9 @@ import org.example.clients.ServerClient;
 import org.example.clients.SshClient;
 import org.example.clients.VBoxClient;
 import org.example.configurations.AppSettings;
+import org.example.models.ComputeResource;
 import org.example.models.ComputingTask;
+import org.example.models.VirtualMachine;
 import org.example.models.commands.docker.DockerManager;
 import org.example.models.shedule.ScheduleTimeStamp;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,6 +27,7 @@ public class ComputeService {
     private final PreferencesStorage preferencesStorage;
     private final SettingService settingService;
     private final VBoxClient vBoxClient;
+    private final VirtualMachine virtualMachine;
     private String virtualMachineName;
 
     private final ConcurrentHashMap<ComputingTask, Future<?>> runningTasks = new ConcurrentHashMap<>();
@@ -36,13 +39,15 @@ public class ComputeService {
                           ServerClient serverClient,
                           PreferencesStorage preferencesStorage,
                           SettingService settingService,
-                          VBoxClient vBoxClient) {
+                          VBoxClient vBoxClient,
+                          VirtualMachine virtualMachine) {
         this.appSettings = appSettings;
         this.subscribeService = subscribeService;
         this.serverClient = serverClient;
         this.preferencesStorage = preferencesStorage;
         this.settingService = settingService;
         this.vBoxClient = vBoxClient;
+        this.virtualMachine = virtualMachine;
     }
 
     @Scheduled(fixedDelayString = "${compute.process.interval}")
@@ -59,6 +64,8 @@ public class ComputeService {
             vBoxClient.addSharedFolderToVirtualMachine(virtualMachineName);
         }
 
+        virtualMachine.setName(virtualMachineName);
+        
         var subscribes = subscribeService.getSubscribes();
         var currentTime = ScheduleTimeStamp.now();
 
@@ -94,7 +101,7 @@ public class ComputeService {
 
                     return executorService.submit(() -> {
                         if (!results.contains(taskUuid)) {
-                            var resultPath = startComputation(subscribe.getProjectId(), taskUuid);
+                            var resultPath = startComputation(subscribe.getProjectId(), taskUuid, interval.getComputeResource());
 
                             if (resultPath != null) {
                                 results.put(taskUuid, resultPath);
@@ -120,19 +127,19 @@ public class ComputeService {
         runningTasks.forEach((key, future) -> {
             if (!future.isDone()) {
                 future.cancel(true);
-                System.out.println("⛔ Задача отменена: " + key.getProjectId());
+                System.out.println("Задача отменена: " + key.getProjectId());
             }
         });
         runningTasks.clear();
     }
 
-    private String startComputation(Integer projectId, UUID taskUuid) {
+    private String startComputation(Integer projectId, UUID taskUuid, ComputeResource computeResource) {
         try {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
             }
 
-            System.out.println("⏳ Начато вычисление для проекта " + projectId);
+            System.out.println("Начато вычисление для проекта " + projectId);
 
             var projectDirectory = Paths.get(
                     appSettings.taskArchivesDirectory,
@@ -153,14 +160,19 @@ public class ComputeService {
                 ).block();
             }
 
-            var ip = vBoxClient.getVirtualMachineIp(virtualMachineName);
+            if (virtualMachine.getIp() == null) {
+                virtualMachine.setIp(vBoxClient.getVirtualMachineIp(virtualMachineName));
+            }
+
+            var ip = virtualMachine.getIp();
             System.out.println(ip);
 
             var outputPath = runDockerComputation(
                     projectId,
                     ip,
                     taskUuid.toString(),
-                    taskUuid + ".zip");
+                    taskUuid + ".zip",
+                    computeResource);
 
 
             Files.deleteIfExists(Path.of(projectDirectory.toString(), taskUuid + ".zip"));
@@ -185,7 +197,8 @@ public class ComputeService {
             Integer projectId,
             String virtualMachineIp,
             String taskUuid,
-            String archiveName) {
+            String archiveName,
+            ComputeResource computeResource) {
         try {
             var sshClient = new SshClient(virtualMachineIp, "zemlianin", "1234");
 
@@ -201,7 +214,7 @@ public class ComputeService {
             sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + taskPath);
 
             var containerName = "compute_project_" + projectId;
-            dockerManager.startContainer(containerName, taskPath, dockerfilePath);
+            dockerManager.startContainer(containerName, taskPath, dockerfilePath, computeResource);
 
             dockerManager.waitForCompletion(containerName).thenRun(() -> {
                 try {
@@ -209,9 +222,9 @@ public class ComputeService {
                     sshClient.executeCommand("zip -r " + resultArchivePath + " " + projectPath);
                     sshClient.executeCommand("rm -f " + resultDir);
 
-                    System.out.println("📤 Результаты успешно сформированы.");
+                    System.out.println("Результаты успешно сформированы.");
                 } catch (Exception e) {
-                    System.err.println("⚠ Ошибка при обработке результата: " + e.getMessage());
+                    System.err.println("Ошибка при обработке результата: " + e.getMessage());
                     e.printStackTrace();
                 }
             });

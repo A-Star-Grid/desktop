@@ -18,9 +18,9 @@ public class PreferencesStorage {
     private static final String COMPUTATION_ACTIVE_KEY = "computation_active";
     private static final String DEVICE_UUID_KEY = "device_uuid";
 
-    private static final int DEFAULT_CPU = 1;
-    private static final int DEFAULT_RAM_MB = 100;
-    private static final int DEFAULT_DISK_GB = 1;
+    private static final double DEFAULT_CPU = 1;
+    private static final int DEFAULT_RAM_MB = 2048;
+    private static final int DEFAULT_DISK_GB = 25;
     private static final String DEFAULT_VIRTUALBOX_PATH = detectDefaultVirtualBoxPath();
 
     private final Preferences preferences;
@@ -56,9 +56,9 @@ public class PreferencesStorage {
         return false;
     }
 
-    public boolean setCpuLimit(int cpuCount) {
+    public boolean setCpuLimit(double cpuCount) {
         if (cpuCount > 0 && cpuCount <= getAvailableProcessors()) {
-            preferences.putInt(CPU_LIMIT_KEY, cpuCount);
+            preferences.putDouble(CPU_LIMIT_KEY, cpuCount);
             return true;
         }
         return false;
@@ -88,8 +88,8 @@ public class PreferencesStorage {
         return preferences.getInt(RAM_LIMIT_KEY, DEFAULT_RAM_MB);
     }
 
-    public int getCpuLimit() {
-        return preferences.getInt(CPU_LIMIT_KEY, DEFAULT_CPU);
+    public double getCpuLimit() {
+        return preferences.getDouble(CPU_LIMIT_KEY, DEFAULT_CPU);
     }
 
     public int getDiskLimit() {
@@ -105,7 +105,7 @@ public class PreferencesStorage {
     }
 
     public void resetToDefaults() {
-        preferences.putInt(CPU_LIMIT_KEY, DEFAULT_CPU);
+        preferences.putDouble(CPU_LIMIT_KEY, DEFAULT_CPU);
         preferences.putInt(RAM_LIMIT_KEY, DEFAULT_RAM_MB);
         preferences.putInt(DISK_LIMIT_KEY, DEFAULT_DISK_GB);
         preferences.put(VIRTUALBOX_PATH_KEY, DEFAULT_VIRTUALBOX_PATH);

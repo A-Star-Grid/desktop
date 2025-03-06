@@ -3,7 +3,7 @@ package org.example.models.dto;
 public class CurrentSettingsResponse {
 
     private int ramLimit;
-    private int cpuLimit;
+    private double cpuLimit;
     private int diskLimit;
     private String virtualBoxPath;
     private boolean computationActive;
@@ -12,7 +12,7 @@ public class CurrentSettingsResponse {
     }
 
     public CurrentSettingsResponse(int ramLimit,
-                                   int cpuLimit,
+                                   double cpuLimit,
                                    int diskLimit,
                                    String virtualBoxPath,
                                    boolean computationActive) {
@@ -31,11 +31,11 @@ public class CurrentSettingsResponse {
         this.ramLimit = ramLimit;
     }
 
-    public int getCpuLimit() {
+    public double getCpuLimit() {
         return cpuLimit;
     }
 
-    public void setCpuLimit(int cpuLimit) {
+    public void setCpuLimit(double cpuLimit) {
         this.cpuLimit = cpuLimit;
     }
 

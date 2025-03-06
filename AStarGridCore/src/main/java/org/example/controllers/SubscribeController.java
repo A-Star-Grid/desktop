@@ -21,7 +21,7 @@ public class SubscribeController {
 
     @PostMapping("/subscribe")
     public ResponseEntity<String> subscribeToProject(@RequestBody SubscribeRequest request) {
-        return subscribeService.subscribe(request);
+        return ResponseEntity.ok(subscribeService.subscribe(request));
     }
 
     @GetMapping("/subscribes_list")

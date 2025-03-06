@@ -1,6 +1,7 @@
 package org.example.models.commands.docker;
 
 import org.example.clients.SshClient;
+import org.example.models.ComputeResource;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -14,22 +15,43 @@ public class DockerManager {
         this.sshClient = sshClient;
     }
 
-    public void startContainer(String containerName, String volumePath, String dockerfilePath) throws Exception {
+    public void startContainer(String containerName,
+                               String volumePath,
+                               String dockerfilePath,
+                               ComputeResource computeResource
+                               ) throws Exception {
         var buildCommand = "cd " + dockerfilePath + " && docker build -t " + containerName + " .";
         var buildResult = sshClient.executeCommand(buildCommand);
 
         if(buildResult.getExitCode() != 0){
-            throw new RuntimeException("Container not builded");
+            throw new RuntimeException("Container not built");
         }
 
-        var runCommand = "docker run -d --rm -v " + volumePath + ":/app " + containerName;
+        var runCommand = GetBuildDockerCommand(containerName, volumePath, computeResource);
+
         var runResult = sshClient.executeCommand(runCommand);
 
         if(runResult.getExitCode() != 0){
             throw new RuntimeException("Container not started");
         }
 
-        System.out.println("✅ Контейнер " + containerName + " запущен.");
+        System.out.println("Контейнер " + containerName + " запущен.");
+    }
+
+    private static String GetBuildDockerCommand(String containerName, String volumePath, ComputeResource computeResource) {
+        int cpuCores = computeResource.getCpuCores();
+        int ramMB = computeResource.getRam(); // ОЗУ в мегабайтах
+
+        // 3. Формируем команду запуска контейнера с ограничениями
+        var runCommand = String.format(
+                "docker run -d --rm " +
+                        "--cpus=%d " +       // Ограничение CPU
+                        "--memory=%dm " +    // Ограничение RAM (мегабайты)
+                        "-v %s:/app %s",
+                cpuCores, ramMB, volumePath, containerName
+        );
+
+        return runCommand;
     }
 
     public CompletableFuture<Void> waitForCompletion(String containerName) {
