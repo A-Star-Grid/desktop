@@ -15,13 +15,19 @@ public class DockerManager {
     }
 
     public void startContainer(String containerName, String volumePath, String dockerfilePath) throws Exception {
-        // 1. Подготавливаем контейнер
-        String buildCommand = "cd " + dockerfilePath + " && docker build -t " + containerName + " .";
-        sshClient.executeCommand(buildCommand);
+        var buildCommand = "cd " + dockerfilePath + " && docker build -t " + containerName + " .";
+        var buildResult = sshClient.executeCommand(buildCommand);
 
-        // 2. Запускаем контейнер
-        String runCommand = "docker run --rm -v -d" + volumePath + ":/app/ " + containerName;
-        sshClient.executeCommand(runCommand);
+        if(buildResult.getExitCode() != 0){
+            throw new RuntimeException("Container not builded");
+        }
+
+        var runCommand = "docker run -d --rm -v " + volumePath + ":/app " + containerName;
+        var runResult = sshClient.executeCommand(runCommand);
+
+        if(runResult.getExitCode() != 0){
+            throw new RuntimeException("Container not started");
+        }
 
         System.out.println("✅ Контейнер " + containerName + " запущен.");
     }
@@ -34,9 +40,9 @@ public class DockerManager {
             @Override
             public void run() {
                 try {
-                    String runningContainers = sshClient.executeCommand("docker ps -q -f name=" + containerName);
+                    var runningContainers = sshClient.executeCommand("docker ps -q -f name=" + containerName);
 
-                    if (runningContainers.trim().isEmpty()) {
+                    if (runningContainers.getStdout().trim().isEmpty()) {
                         System.out.println("✅ Контейнер " + containerName + " завершил работу.");
                         future.complete(null); // Завершаем `CompletableFuture`
                     } else {

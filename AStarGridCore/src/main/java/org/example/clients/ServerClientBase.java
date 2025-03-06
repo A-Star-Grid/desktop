@@ -3,9 +3,12 @@ package org.example.clients;
 import org.example.configurations.AppSettings;
 import org.example.models.dto.RefreshRequest;
 import org.example.models.dto.RefreshResponse;
+import org.example.models.dto.UploadResult;
 import org.example.services.PreferencesStorage;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -37,6 +40,16 @@ public class ServerClientBase {
     protected Mono<Void> getFileWithRetry(String uri, String saveDirectory, String fileName) {
         return sendRequestWithRetry(webClient.get().uri(uri), byte[].class)
                 .flatMap(fileData -> saveFile(fileData, saveDirectory, fileName));
+    }
+
+    protected Mono<UploadResult> postFileWithRetry(String uri, MultipartBodyBuilder bodyBuilder) {
+        return sendRequestWithRetry(
+                webClient.post()
+                        .uri(uri)
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .body(BodyInserters.fromMultipartData(bodyBuilder.build())),
+                UploadResult.class
+        );
     }
 
     protected <T> Mono<T> postWithRetry(String uri, Class<T> responseType) {

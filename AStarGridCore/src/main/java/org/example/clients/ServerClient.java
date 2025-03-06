@@ -4,10 +4,15 @@ import org.example.configurations.AppSettings;
 import org.example.models.*;
 import org.example.models.dto.*;
 import org.example.services.PreferencesStorage;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,10 +63,29 @@ public class ServerClient extends ServerClientBase {
                 fileName);
     }
 
+    public Mono<UploadResult> uploadResultArchive(UUID taskUUID, int projectId, UUID deviceUUID, String filePath) {
+        var file = new File(filePath);
+
+        if (!file.exists() || !file.isFile()) {
+            return Mono.error(new RuntimeException("Файл не найден: " + filePath));
+        }
+
+        MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
+        bodyBuilder.part("file", new FileSystemResource(file))
+                .contentType(MediaType.APPLICATION_OCTET_STREAM);
+
+        return postFileWithRetry("/upload_result?task_uuid=" + taskUUID.toString() +
+                    "&project_id=" + projectId +
+                    "&device_uuid=" + deviceUUID,
+                bodyBuilder)
+                .doOnSuccess(response -> System.out.println("📤 Файл успешно загружен: " + filePath))
+                .doOnError(error -> System.err.println("⚠ Ошибка загрузки файла: " + error.getMessage()));
+    }
+
     public Mono<CurrentTaskResponse> getCurrentTask(int projectId, UUID deviceUUID) {
         return getWithRetry(
                 "/get_current_task?project_id=" + projectId +
-                "&device_uuid=" + deviceUUID,
+                        "&device_uuid=" + deviceUUID,
                 CurrentTaskResponse.class
         );
     }

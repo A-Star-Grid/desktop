@@ -6,7 +6,6 @@ import org.example.clients.VBoxClient;
 import org.example.configurations.AppSettings;
 import org.example.models.ComputingTask;
 import org.example.models.commands.docker.DockerManager;
-import org.example.models.shedule.ScheduleInterval;
 import org.example.models.shedule.ScheduleTimeStamp;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -15,10 +14,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.UUID;
+import java.util.concurrent.*;
 
 @Service
 public class ComputeService {
@@ -32,6 +29,7 @@ public class ComputeService {
 
     private final ConcurrentHashMap<ComputingTask, Future<?>> runningTasks = new ConcurrentHashMap<>();
     private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final ConcurrentHashMap<UUID, String> results = new ConcurrentHashMap<>();
 
     public ComputeService(AppSettings appSettings,
                           SubscribeService subscribeService,
@@ -56,6 +54,7 @@ public class ComputeService {
         }
 
         virtualMachineName = "vm-" + preferencesStorage.getDeviceUUID().toString();
+
         if (vBoxClient.createVirtualMachineIfNotExist(virtualMachineName)) {
             vBoxClient.addSharedFolderToVirtualMachine(virtualMachineName);
         }
@@ -65,23 +64,52 @@ public class ComputeService {
 
         for (var subscribe : subscribes) {
             for (var interval : subscribe.getScheduleIntervals()) {
-                if (interval.contains(currentTime)) {
-                    vBoxClient.startVirtualMachineIfNotRunning(virtualMachineName);
+                if (!interval.contains(currentTime)) {
+                    continue;
+                }
 
-                    var key = new ComputingTask(subscribe.getProjectId(), interval);
+                var key = new ComputingTask(subscribe.getProjectId(), interval);
 
-                    runningTasks.compute(key, (k, existingFuture) -> {
-                        if (existingFuture != null && !existingFuture.isDone()) {
-                            return existingFuture;
+                if (runningTasks.contains(key)) {
+                    continue;
+                }
+
+                var taskResponse = serverClient.getCurrentTask(
+                        subscribe.getProjectId(),
+                        preferencesStorage.getDeviceUUID()).block();
+
+                if (taskResponse == null) {
+                    continue;
+                }
+
+                var taskUuid = taskResponse.getTaskUuid();
+
+                vBoxClient.startVirtualMachineIfNotRunning(virtualMachineName);
+
+
+                runningTasks.compute(key, (k, existingFuture) -> {
+                    if (existingFuture != null && !existingFuture.isDone()) {
+                        return existingFuture;
+                    }
+
+                    return executorService.submit(() -> {
+                        if (!results.contains(taskUuid)) {
+                            var resultPath = startComputation(subscribe.getProjectId(), taskUuid);
+
+                            if (resultPath != null) {
+                                results.put(taskUuid, resultPath);
+                            }
                         }
 
-                        var newFuture = executorService.submit(() -> {
-                            startComputation(subscribe.getProjectId(), interval);
-                        });
-
-                        return newFuture;
+                        try {
+                            uploadResult(taskUuid, subscribe.getProjectId(), results.get(taskUuid));
+                            Files.deleteIfExists(Path.of(results.get(taskUuid)));
+                            results.remove(taskUuid);
+                        } catch (Exception e) {
+                            System.out.println("Error of upload task result");
+                        }
                     });
-                }
+                });
             }
         }
 
@@ -98,16 +126,13 @@ public class ComputeService {
         runningTasks.clear();
     }
 
-    private void startComputation(Integer projectId, ScheduleInterval interval) {
+    private String startComputation(Integer projectId, UUID taskUuid) {
         try {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
             }
 
             System.out.println("⏳ Начато вычисление для проекта " + projectId);
-
-            var taskResponse = serverClient.getCurrentTask(projectId, preferencesStorage.getDeviceUUID()).block();
-            var taskUuid = taskResponse.getTaskUuid();
 
             var projectDirectory = Paths.get(
                     appSettings.taskArchivesDirectory,
@@ -131,13 +156,20 @@ public class ComputeService {
             var ip = vBoxClient.getVirtualMachineIp(virtualMachineName);
             System.out.println(ip);
 
-            runDockerComputation(projectId, ip, taskUuid.toString(), taskUuid + ".zip");
+            var outputPath = runDockerComputation(
+                    projectId,
+                    ip,
+                    taskUuid.toString(),
+                    taskUuid + ".zip");
 
-            System.out.println("✅ Завершено вычисление для проекта " + projectId);
+
+            Files.deleteIfExists(Path.of(projectDirectory.toString(), taskUuid + ".zip"));
+
+            return outputPath;
         } catch (InterruptedException e) {
             System.out.println("⚠️ Задача прервана: " + projectId);
-            cleanupAfterCancel(projectId);
             Thread.currentThread().interrupt(); // Восстанавливаем флаг
+            return null;
         } catch (IOException e) {
             System.out.println("⚠️ Ошибка чтения файлов " + projectId);
             throw new RuntimeException(e);
@@ -145,57 +177,59 @@ public class ComputeService {
             System.err.println("⚠️ Ошибка при обработке проекта "
                     + projectId + ": " + e.getMessage());
             e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
-    private void runDockerComputation(Integer projectId, String virtualMachineIp, String task_uuid, String archiveName) {
+    private String runDockerComputation(
+            Integer projectId,
+            String virtualMachineIp,
+            String taskUuid,
+            String archiveName) {
         try {
-            // 1. Создаем SSH-клиента
             var sshClient = new SshClient(virtualMachineIp, "zemlianin", "1234");
 
-            // 2. Создаем DockerManager
             var dockerManager = new DockerManager(sshClient);
 
-            // 3. Определяем пути
-            var projectPath = "/mnt/shared/" + "Project" + projectId;
+            var projectPath = "/mnt/shared/Project" + projectId;
             var taskArchivePath = projectPath + "/" + archiveName;
-            var resultDir = projectPath + "/output"; // Директория результатов
-            var resultArchivePath = resultDir + ".zip"; // Итоговый архив
+            var resultDir = projectPath + "/output";
+            var resultArchivePath = projectPath + "/output.zip";
             var dockerfilePath = "/home/zemlianin/";
-            var taskPath = projectPath + "/" + task_uuid;
+            var taskPath = projectPath + "/" + taskUuid;
 
-            // 4. Разархивируем задание внутри виртуальной машины
             sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + taskPath);
 
-            // 5. Запускаем контейнер
             var containerName = "compute_project_" + projectId;
             dockerManager.startContainer(containerName, taskPath, dockerfilePath);
 
-            // 6. Ожидаем завершения контейнера
             dockerManager.waitForCompletion(containerName).thenRun(() -> {
                 try {
-                    // 7. Архивируем результат в ZIP
-                    sshClient.executeCommand("rm -f " + resultArchivePath); // Удаляем старый архив, если он есть
-                    sshClient.executeCommand("zip -r " + resultArchivePath + " " + resultDir);
+                    sshClient.executeCommand("rm -f " + resultArchivePath);
+                    sshClient.executeCommand("zip -r " + resultArchivePath + " " + projectPath);
+                    sshClient.executeCommand("rm -f " + resultDir);
 
-                    // 8. Отправляем результаты на сервер
-                    //          serverClient.uploadComputationResult(projectId, preferencesStorage.getDeviceUUID(), resultArchivePath).block();
-
-                    System.out.println("📤 Результаты успешно отправлены на сервер.");
+                    System.out.println("📤 Результаты успешно сформированы.");
                 } catch (Exception e) {
                     System.err.println("⚠ Ошибка при обработке результата: " + e.getMessage());
                     e.printStackTrace();
                 }
             });
 
+            return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, "output.zip").toString();
         } catch (Exception e) {
-            System.err.println("⚠ Ошибка при запуске контейнера для проекта " + projectId + ": " + e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException("Container was not run");
         }
     }
 
-    private void cleanupAfterCancel(Integer projectId) {
-        System.out.println("🧹 Очистка ресурсов проекта " + projectId);
-        System.out.println("🧹 Завершена очистка ресурсов проекта " + projectId);
+    private void uploadResult(UUID taskUuid, Integer projectId, String outputPath) throws IOException {
+        var uploadResult = serverClient.uploadResultArchive(
+                taskUuid,
+                projectId,
+                preferencesStorage.getDeviceUUID(),
+                outputPath).block();
+
+        Files.deleteIfExists(Path.of(outputPath));
+        System.out.println("Results sent");
     }
 }

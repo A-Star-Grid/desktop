@@ -1,10 +1,9 @@
 package org.example.clients;
 
 import com.jcraft.jsch.*;
+import org.example.models.commands.CommandResult;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
@@ -19,7 +18,7 @@ public class SshClient {
         this.password = password;
     }
 
-    public String executeCommand(String command) throws Exception {
+    public CommandResult executeCommand(String command) throws Exception {
         JSch jsch = new JSch();
         Session session = jsch.getSession(username, host, 22);
         session.setPassword(password);
@@ -33,25 +32,24 @@ public class SshClient {
         channel.setCommand(command);
         channel.setInputStream(null);
 
-        // Создаем потоки для чтения стандартного и ошибочного вывода
         InputStream stdout = channel.getInputStream();
         InputStream stderr = channel.getErrStream();
 
         channel.connect();
 
-        // Читаем оба потока
         String output = readStream(stdout);
         String error = readStream(stderr);
+
+        // Ждем завершения команды и получаем код выхода
+        while (!channel.isClosed()) {
+            Thread.sleep(100);
+        }
+        int exitCode = channel.getExitStatus();
 
         channel.disconnect();
         session.disconnect();
 
-        // Если stderr не пуст, добавляем его в ответ
-        if (!error.isEmpty()) {
-            System.out.println("STDOUT:\n" + output + "\nSTDERR:\n" + error);
-            return "STDOUT:\n" + output + "\nSTDERR:\n" + error;
-        }
-        return output;
+        return new CommandResult(output, error, exitCode);
     }
 
     private String readStream(InputStream stream) throws IOException {
