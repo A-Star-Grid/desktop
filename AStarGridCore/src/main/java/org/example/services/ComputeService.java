@@ -65,7 +65,7 @@ public class ComputeService {
         }
 
         virtualMachine.setName(virtualMachineName);
-        
+
         var subscribes = subscribeService.getSubscribes();
         var currentTime = ScheduleTimeStamp.now();
 
