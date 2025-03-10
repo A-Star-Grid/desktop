@@ -1,4 +1,6 @@
-package org.example;
+package org.example.commands;
+
+import org.example.ServerClient;
 
 public class SetRamCommand implements ConsoleCommand {
     private int ram;
@@ -16,7 +18,7 @@ public class SetRamCommand implements ConsoleCommand {
     @Override
     public void execute() {
         if (ram <= 0) {
-            System.out.println("Ошибка: укажите размер RAM в MB через --ram");
+            System.out.println("Error: need --ram");
             return;
         }
 

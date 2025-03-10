@@ -1,5 +1,8 @@
 package org.example;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.models.SubscribeRequest;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -7,7 +10,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class ServerClient {
-    private static final String BASE_URL = "http://localhost:8080";
+    private static final String BASE_URL = "http://localhost:8082";
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     public String login(String username, String password) {
         String endpoint = BASE_URL + "/auth/login?username=" + username + "&password=" + password;
@@ -19,10 +24,27 @@ public class ServerClient {
         return sendGetRequest(endpoint);
     }
 
-    public String subscribeToProject(int projectId) {
+    public String subscribeToProject(SubscribeRequest request) {
         String endpoint = BASE_URL + "/subscribes/subscribe";
-        String body = "{ \"projectId\": " + projectId + " }";
-        return sendPostRequest(endpoint, body);
+
+        try {
+            URL url = new URL(endpoint);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+
+            String jsonBody = objectMapper.writeValueAsString(request);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBody.getBytes());
+                os.flush();
+            }
+
+            return readResponse(conn);
+        } catch (Exception e) {
+            return "Ошибка запроса: " + e.getMessage();
+        }
     }
 
     public String unsubscribeFromProject(int projectId) {
@@ -43,7 +65,7 @@ public class ServerClient {
 
             return readResponse(conn);
         } catch (Exception e) {
-            return "Ошибка запроса: " + e.getMessage();
+            return "Error of request: " + e.getMessage();
         }
     }
 
@@ -67,6 +89,10 @@ public class ServerClient {
         return sendPostRequest(BASE_URL + "/settings/reset", "");
     }
 
+    public String getCurrentSettings() {
+        return sendGetRequest(BASE_URL + "/settings/current");
+    }
+
     private String sendPostRequest(String endpoint, String body) {
         try {
             URL url = new URL(endpoint);
@@ -84,7 +110,7 @@ public class ServerClient {
 
             return readResponse(conn);
         } catch (Exception e) {
-            return "Ошибка запроса: " + e.getMessage();
+            return "Error of request: " + e.getMessage();
         }
     }
 
@@ -105,7 +131,7 @@ public class ServerClient {
 
             return response.toString();
         } catch (Exception e) {
-            return "Ошибка чтения ответа: " + e.getMessage();
+            return "Error of reading a answer: " + e.getMessage();
         }
     }
 }

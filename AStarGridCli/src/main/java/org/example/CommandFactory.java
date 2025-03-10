@@ -1,5 +1,7 @@
 package org.example;
 
+import org.example.commands.*;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,6 +19,7 @@ public class CommandFactory {
         commands.put("subscribe", new SubscribeCommand());
         commands.put("unsubscribe", new UnsubscribeCommand());
         commands.put("get-subscribes", new GetSubscribesCommand());
+        commands.put("get-settings", new GetCurrentSettingsCommand());
     }
 
     public Runnable getCommand(String[] args) {

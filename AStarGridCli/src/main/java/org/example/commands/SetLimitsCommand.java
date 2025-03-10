@@ -1,4 +1,6 @@
-package org.example;
+package org.example.commands;
+
+import org.example.ServerClient;
 
 public class SetLimitsCommand implements ConsoleCommand {
     private int ram;
@@ -26,6 +28,6 @@ public class SetLimitsCommand implements ConsoleCommand {
         if (ram > 0) client.setRamLimit(ram);
         if (cpu > 0) client.setCpuLimit(cpu);
         if (disk > 0) client.setDiskLimit(disk);
-        System.out.println("Лимиты установлены.");
+        System.out.println("Success.");
     }
 }

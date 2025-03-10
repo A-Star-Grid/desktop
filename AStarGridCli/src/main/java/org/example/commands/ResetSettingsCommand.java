@@ -1,4 +1,6 @@
-package org.example;
+package org.example.commands;
+
+import org.example.ServerClient;
 
 public class ResetSettingsCommand implements ConsoleCommand {
     private final ServerClient client = new ServerClient();

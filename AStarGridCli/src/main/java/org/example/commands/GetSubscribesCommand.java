@@ -1,5 +1,7 @@
-package org.example;
+package org.example.commands;
 
+
+import org.example.ServerClient;
 
 public class GetSubscribesCommand implements ConsoleCommand {
     private final ServerClient client = new ServerClient();
@@ -12,7 +14,7 @@ public class GetSubscribesCommand implements ConsoleCommand {
     @Override
     public void execute() {
         String subscribes = client.getSubscribes();
-        System.out.println("Ваши подписки:");
+        System.out.println("Subscribes:");
         System.out.println(subscribes);
     }
 }

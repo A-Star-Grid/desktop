@@ -1,5 +1,7 @@
-package org.example;
+package org.example.commands;
 
+
+import org.example.ServerClient;
 
 public class LoginCommand implements ConsoleCommand {
     private String username;

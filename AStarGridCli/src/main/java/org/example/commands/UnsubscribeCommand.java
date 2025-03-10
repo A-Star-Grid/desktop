@@ -1,4 +1,6 @@
-package org.example;
+package org.example.commands;
+
+import org.example.ServerClient;
 
 public class UnsubscribeCommand implements ConsoleCommand {
     private int projectId;
@@ -16,11 +18,11 @@ public class UnsubscribeCommand implements ConsoleCommand {
     @Override
     public void execute() {
         if (projectId <= 0) {
-            System.out.println("Ошибка: укажите ID проекта с параметром --projectId");
+            System.out.println("Error: need --projectId");
             return;
         }
 
         client.unsubscribeFromProject(projectId);
-        System.out.println("Вы отписались от проекта " + projectId);
+        System.out.println("Success unsubscribe " + projectId);
     }
 }

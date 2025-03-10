@@ -1,5 +1,7 @@
-package org.example;
+package org.example.commands;
 
+
+import org.example.ServerClient;
 
 public class SetDiskCommand implements ConsoleCommand {
     private int disk;
@@ -17,7 +19,7 @@ public class SetDiskCommand implements ConsoleCommand {
     @Override
     public void execute() {
         if (disk <= 0) {
-            System.out.println("Ошибка: укажите размер диска в GB через --disk");
+            System.out.println("Error: need --disk");
             return;
         }
 

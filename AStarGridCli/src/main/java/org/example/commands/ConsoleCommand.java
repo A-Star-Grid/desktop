@@ -1,4 +1,4 @@
-package org.example;
+package org.example.commands;
 
 public interface ConsoleCommand extends Runnable {
     void execute();

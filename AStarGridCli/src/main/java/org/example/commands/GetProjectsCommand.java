@@ -1,5 +1,7 @@
-package org.example;
+package org.example.commands;
 
+
+import org.example.ServerClient;
 
 public class GetProjectsCommand implements ConsoleCommand {
     private int page = 1;
@@ -21,7 +23,7 @@ public class GetProjectsCommand implements ConsoleCommand {
     @Override
     public void execute() {
         String projects = client.getProjects(page, perPage);
-        System.out.println("Список проектов:");
+        System.out.println("List of projects:");
         System.out.println(projects);
     }
 }

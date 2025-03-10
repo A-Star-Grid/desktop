@@ -1,4 +1,6 @@
-package org.example;
+package org.example.commands;
+
+import org.example.ServerClient;
 
 public class SetCpuCommand implements ConsoleCommand {
     private double cpu;
@@ -16,7 +18,7 @@ public class SetCpuCommand implements ConsoleCommand {
     @Override
     public void execute() {
         if (cpu <= 0) {
-            System.out.println("Ошибка: укажите число ядер через --cpu");
+            System.out.println("Error: need --cpu");
             return;
         }
 
