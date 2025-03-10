@@ -55,34 +55,89 @@ const SettingsPage = () => {
     };
 
     return (
-        <div>
+        <div style={styles.pageContainer}>
             <h2>⚙ Настройки</h2>
 
-            <label>CPU:</label>
-            <input type="number" value={cpu} onChange={(e) => setCpu(e.target.value)} />
+            <div style={styles.settingsForm}>
+                <label>CPU:</label>
+                <input type="number" value={cpu} onChange={(e) => setCpu(e.target.value)} />
 
-            <label>RAM:</label>
-            <input type="number" value={ram} onChange={(e) => setRam(e.target.value)} />
+                <label>RAM:</label>
+                <input type="number" value={ram} onChange={(e) => setRam(e.target.value)} />
 
-            <label>Disk:</label>
-            <input type="number" value={disk} onChange={(e) => setDisk(e.target.value)} />
+                <label>Disk:</label>
+                <input type="number" value={disk} onChange={(e) => setDisk(e.target.value)} />
 
-            <label>VirtualBox Path:</label>
-            <input type="text" value={vboxPath} onChange={(e) => setVBoxPath(e.target.value)} />
+                <label>VirtualBox Path:</label>
+                <input type="text" value={vboxPath} onChange={(e) => setVBoxPath(e.target.value)} />
 
-            <button onClick={saveSettings}>Сохранить</button>
-            <button onClick={resetSettings} style={{ marginLeft: "10px", backgroundColor: "red", color: "white" }}>
-                Сбросить настройки
-            </button>
+                <div style={styles.buttonContainer}>
+                    <button onClick={saveSettings} style={styles.saveButton}>Сохранить</button>
+                    <button onClick={resetSettings} style={styles.resetButton}>Сбросить настройки</button>
+                </div>
+            </div>
 
             <h3>Статус вычислений: {computationActive ? "🟢 Активны" : "🔴 Остановлены"}</h3>
-            <button onClick={toggleComputation}>
+            <button onClick={toggleComputation} style={styles.toggleButton}>
                 {computationActive ? "Остановить вычисления" : "Запустить вычисления"}
             </button>
 
-            {statusMessage && <p>{statusMessage}</p>}
+            {statusMessage && <p style={styles.statusMessage}>{statusMessage}</p>}
         </div>
     );
+};
+
+// Стили
+const styles = {
+    pageContainer: {
+        maxWidth: "600px", // Ограниечение ширины
+        margin: "0 auto", // Центрирование страницы
+        padding: "20px", // Внутренние отступы
+    },
+    settingsForm: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        backgroundColor: "#f9f9f9",
+        padding: "15px",
+        borderRadius: "10px",
+        border: "1px solid #ccc",
+    },
+    buttonContainer: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginTop: "10px"
+    },
+    saveButton: {
+        backgroundColor: "green",
+        color: "white",
+        border: "none",
+        padding: "10px",
+        cursor: "pointer",
+        borderRadius: "5px"
+    },
+    resetButton: {
+        backgroundColor: "red",
+        color: "white",
+        border: "none",
+        padding: "10px",
+        cursor: "pointer",
+        borderRadius: "5px"
+    },
+    toggleButton: {
+        marginTop: "10px",
+        backgroundColor: "blue",
+        color: "white",
+        border: "none",
+        padding: "10px",
+        cursor: "pointer",
+        borderRadius: "5px",
+    },
+    statusMessage: {
+        marginTop: "10px",
+        fontWeight: "bold",
+        color: "#333"
+    }
 };
 
 export default SettingsPage;

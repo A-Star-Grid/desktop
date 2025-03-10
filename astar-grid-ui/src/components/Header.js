@@ -34,13 +34,17 @@ const Header = () => {
     return (
         <header style={styles.header}>
             <span style={styles.username}>👤 {username || "Гость"}</span>
-            <nav>
-                <Link to="/projects">📌 Проекты</Link>
-                <Link to="/subscriptions">📜 Подписки</Link>
-                <Link to="/settings">⚙ Настройки</Link>
-                <Link to="/statistics">📊 Статистика</Link>
+            <nav style={styles.nav}>
+                <Link to="/projects" style={styles.navLink}>📌 Проекты</Link>
+                <span style={styles.separator}>|</span>
+                <Link to="/subscriptions" style={styles.navLink}>📜 Подписки</Link>
+                <span style={styles.separator}>|</span>
+                <Link to="/settings" style={styles.navLink}>⚙ Настройки</Link>
+                <span style={styles.separator}>|</span>
+                <Link to="/statistics" style={styles.navLink}>📊 Статистика</Link>
+                <span style={styles.separator}>|</span>
+                <button onClick={handleLogout} style={styles.logoutButton}>🚪 Выйти</button>
             </nav>
-            <button onClick={handleLogout} style={styles.logoutButton}>🚪 Выйти</button>
         </header>
     );
 };
@@ -50,21 +54,39 @@ const styles = {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "10px",
+        padding: "10px 20px",
         backgroundColor: "#222",
-        color: "#fff"
+        color: "#fff",
     },
     username: {
         fontWeight: "bold",
+        fontSize: "16px",
+    },
+    nav: {
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+    },
+    navLink: {
+        color: "#fff",
+        textDecoration: "none",
+        padding: "8px 15px",
+        borderRadius: "5px",
+        transition: "background 0.3s",
+    },
+    separator: {
+        color: "#ccc",
+        fontSize: "18px",
+        margin: "0 5px",
     },
     logoutButton: {
-        marginLeft: "20px",
-        padding: "5px 10px",
+        padding: "8px 15px",
         cursor: "pointer",
         border: "none",
         backgroundColor: "#ff4d4d",
         color: "white",
         borderRadius: "5px",
+        transition: "background 0.3s",
     }
 };
 
