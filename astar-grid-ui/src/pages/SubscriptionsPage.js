@@ -18,7 +18,7 @@ const SubscriptionsPage = () => {
 
     return (
         <div style={styles.container}>
-            <h2>📜 Мои подписки</h2>
+            <h2>Мои подписки</h2>
             {subscriptions.length === 0 ? (
                 <p>У вас нет активных подписок.</p>
             ) : (

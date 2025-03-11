@@ -13,13 +13,60 @@ const ProjectsPage = () => {
     const [endDay, setEndDay] = useState("Monday");
     const [startTime, setStartTime] = useState("00:00");
     const [endTime, setEndTime] = useState("23:59");
+    
+    const [avatarSize, setAvatarSize] = useState(80); // Размер аватарки по умолчанию
+
+    // Пагинация
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(5); // Кол-во проектов на странице
+    const [totalPages, setTotalPages] = useState(1);
+    
+
+    // Обновляем размер аватарки при изменении ширины экрана
+    useEffect(() => {
+        const updateAvatarSize = () => {
+            const newSize = Math.max(50, Math.min(window.innerWidth * 0.1, 120));
+            setAvatarSize(newSize);
+        };
+
+        updateAvatarSize();
+        window.addEventListener("resize", updateAvatarSize);
+        return () => window.removeEventListener("resize", updateAvatarSize);
+    }, []);
 
     useEffect(() => {
-        fetch("http://localhost:8082/project/list?page=1&perPage=5")
-            .then((res) => res.json())
-            .then((data) => setProjects(data.projects))
-            .catch((error) => console.error("Ошибка загрузки проектов:", error));
-    }, []);
+        fetchProjects(currentPage, perPage);
+    }, [currentPage, perPage]); // Запрос будет обновляться при изменении страницы и лимита
+
+    const fetchProjects = (page, limit) => {
+        fetch(`http://localhost:8082/project/list?page=${page}&perPage=${limit}`)
+            .then(res => res.json())
+            .then(data => {
+                const projectsWithColors = data.projects.map(project => ({
+                    ...project,
+                    color: generateRandomColor()
+                }));
+                setProjects(projectsWithColors);
+                setTotalPages(data.totalPages); // Кол-во страниц из API
+            })
+            .catch(error => console.error("Ошибка загрузки проектов:", error));
+    };
+
+    useEffect(() => {
+        fetchProjects(currentPage, perPage);
+    }, [currentPage, perPage]);
+
+    const goToNextPage = () => {
+      //  if (currentPage < totalPages) {
+            setCurrentPage(prev => prev + 1);
+      //  }
+    };
+
+    const goToPrevPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(prev => prev - 1);
+        }
+    };
 
     const openModal = (project) => {
         setSelectedProject(project);
@@ -59,15 +106,43 @@ const ProjectsPage = () => {
 
     return (
         <div style={styles.container}>
-            <h2>📌 Список проектов</h2>
+            <h2>Список проектов</h2>
+            {/* Выбор количества элементов на странице */}
+            <div style={styles.paginationControls}>
+                <label>Показывать:</label>
+                <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                </select>
+            </div>
+
             <div style={styles.gridContainer}>
                 {projects.map((project) => (
                     <div key={project.id} style={styles.projectCard}>
+                        <div style={{ 
+                            ...styles.projectAvatar, 
+                            backgroundColor: project.color, 
+                            width: avatarSize, 
+                            height: avatarSize
+                        }}></div>
                         <h3>{project.name}</h3>
                         <p>{project.description}</p>
                         <button onClick={() => openModal(project)} style={styles.subscribeButton}>Подписаться</button>
                     </div>
                 ))}
+            </div>
+
+            {/* Пагинация */}
+            <br/>
+            <div style={styles.pagination}>
+                <button onClick={goToPrevPage} disabled={currentPage === 1} style={styles.pageButton}>
+                    ⬅ Назад
+                </button>
+                <span> Страница {currentPage} </span>
+                <button onClick={goToNextPage} disabled={currentPage === totalPages} style={styles.pageButton}>
+                    Вперед ➡
+                </button>
             </div>
 
             {/* Модальное окно */}
@@ -119,6 +194,14 @@ const convertTimeToSeconds = (time) => {
     return hours * 3600 + minutes * 60;
 };
 
+// 🟢 Функция генерации случайного цвета
+const generateRandomColor = () => {
+    return `rgb(${rand(50, 200)}, ${rand(50, 200)}, ${rand(50, 200)})`;
+};
+
+// Функция для генерации случайного числа в диапазоне
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
 // Стили
 const styles = {
     container: {
@@ -135,10 +218,17 @@ const styles = {
     projectCard: {
         border: "1px solid #ccc",
         padding: "15px",
-        borderRadius: "5px",
+        borderRadius: "10px",
         backgroundColor: "#f9f9f9",
         textAlign: "center",
-        boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
+        boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+    },
+    projectAvatar: {
+        borderRadius: "10px",
+        marginBottom: "10px"
     },
     subscribeButton: {
         backgroundColor: "green",

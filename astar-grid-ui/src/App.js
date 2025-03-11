@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import LoginPage from "./pages/LoginPage";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -12,7 +12,19 @@ function App() {
 
     return (
         <Router>
-            {username && <Header username={username} />}
+            <MainContent username={username} setUsername={setUsername} />
+        </Router>
+    );
+}
+
+function MainContent({ username, setUsername }) {
+    const location = useLocation(); // Получаем текущий путь
+
+    return (
+        <>
+            {/* Показываем Header, только если мы НЕ на странице входа */}
+            {location.pathname !== "/" && <Header username={username} />}
+
             <Routes>
                 <Route path="/" element={<LoginPage setUsername={setUsername} />} />
                 <Route path="/projects" element={<ProjectsPage />} />
@@ -20,7 +32,7 @@ function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/statistics" element={<StatisticsPage />} />
             </Routes>
-        </Router>
+        </>
     );
 }
 
