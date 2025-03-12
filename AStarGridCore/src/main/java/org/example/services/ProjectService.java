@@ -1,10 +1,12 @@
 package org.example.services;
 
 import org.example.clients.ServerClient;
+import org.example.models.dto.Project;
+import org.example.models.dto.ProjectsResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Service
 public class ProjectService {
@@ -17,14 +19,24 @@ public class ProjectService {
         this.preferencesStorage = preferencesStorage;
     }
 
-    public ResponseEntity<String> getProjects(int page, int perPage) {
-        Mono<String> projectsMono = serverClient.getProjects(page, perPage);
-        String projects = projectsMono.block(); // Блокируем, чтобы получить результат
+    public ProjectsResponse getProjects(int page, int perPage) {
+        var projectsMono = serverClient.getProjects(page, perPage);
+        var projects = projectsMono.block();
 
-        if (projects != null) {
-            return ResponseEntity.ok(projects);
-        } else {
-            return ResponseEntity.status(500).body("Failed to fetch projects");
-        }
+        return projects;
+    }
+
+    public List<Project> getProjectById(int id) {
+        var projectsMono = serverClient.getProjects();
+        var projects = projectsMono.block();
+
+        return projects.getProjects().stream().filter(p -> p.getId() == id).toList();
+    }
+
+    public List<Project> getProjectByNamePattern(String namePattern) {
+        var projectsMono = serverClient.getProjects();
+        var projects = projectsMono.block();
+
+        return projects.getProjects().stream().filter(p -> p.getName().contains(namePattern)).toList();
     }
 }

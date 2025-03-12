@@ -4,6 +4,7 @@ import org.example.configurations.AppSettings;
 import org.example.models.*;
 import org.example.models.dto.*;
 import org.example.services.PreferencesStorage;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -37,8 +38,12 @@ public class ServerClient extends ServerClientBase {
         return getWithRetry("/user", User.class);
     }
 
-    public Mono<String> getProjects(int page, int perPage) {
-        return getWithRetry("/projects?page=" + page + "&per_page=" + perPage, String.class);
+    public Mono<ProjectsResponse> getProjects(int page, int perPage) {
+        return getWithRetry("/projects_paginate?page=" + page + "&per_page=" + perPage, ProjectsResponse.class);
+    }
+
+    public Mono<ProjectsResponse> getProjects() {
+        return getWithRetry("/projects", ProjectsResponse.class);
     }
 
     public Mono<String> subscribeToProject(SubscribeTransport subscribeTransport) {

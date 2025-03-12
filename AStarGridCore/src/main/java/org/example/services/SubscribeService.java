@@ -84,7 +84,7 @@ public class SubscribeService {
 
         var maxComputeResource = getMaxResourceUsage(resourceTimeline);
 
-        if (maxComputeResource.getCpuCores() >= settingService.getCpuLimit() ||
+        if (maxComputeResource.getCpuCores() > settingService.getCpuLimit() ||
                 maxComputeResource.getRam() > settingService.getRamLimit() ||
                 maxComputeResource.getDiskSpace() > settingService.getDiskLimit()
         ) {

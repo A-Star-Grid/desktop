@@ -14,13 +14,15 @@ const ProjectsPage = () => {
     const [startTime, setStartTime] = useState("00:00");
     const [endTime, setEndTime] = useState("23:59");
     
-    const [avatarSize, setAvatarSize] = useState(80); // Размер аватарки по умолчанию
+    const [avatarSize, setAvatarSize] = useState(80);
 
     // Пагинация
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage, setPerPage] = useState(5); // Кол-во проектов на странице
     const [totalPages, setTotalPages] = useState(1);
     
+    // Поиск
+    const [searchQuery, setSearchQuery] = useState("");
 
     // Обновляем размер аватарки при изменении ширины экрана
     useEffect(() => {
@@ -38,28 +40,33 @@ const ProjectsPage = () => {
         fetchProjects(currentPage, perPage);
     }, [currentPage, perPage]); // Запрос будет обновляться при изменении страницы и лимита
 
-    const fetchProjects = (page, limit) => {
-        fetch(`http://localhost:8082/project/list?page=${page}&perPage=${limit}`)
+    const fetchProjects = (page, limit, search = null) => {
+        const url = search && search.trim()
+            ? `http://localhost:8082/project/search?name=${encodeURIComponent(search)}`
+            : `http://localhost:8082/project/list?page=${page}&perPage=${limit}`;
+    
+        fetch(url)
             .then(res => res.json())
             .then(data => {
-                const projectsWithColors = data.projects.map(project => ({
+                const projectsWithColors = (Array.isArray(data) ? data : data.projects).map(project => ({
                     ...project,
                     color: generateRandomColor()
                 }));
                 setProjects(projectsWithColors);
-                setTotalPages(data.totalPages); // Кол-во страниц из API
+                if (!search) setTotalPages(data.totalPages); // Только если не поиск, обновляем страницы
             })
             .catch(error => console.error("Ошибка загрузки проектов:", error));
     };
+    
 
     useEffect(() => {
         fetchProjects(currentPage, perPage);
     }, [currentPage, perPage]);
 
     const goToNextPage = () => {
-      //  if (currentPage < totalPages) {
+        if (currentPage < totalPages) {
             setCurrentPage(prev => prev + 1);
-      //  }
+        }
     };
 
     const goToPrevPage = () => {
@@ -106,16 +113,22 @@ const ProjectsPage = () => {
 
     return (
         <div style={styles.container}>
-            <h2>Список проектов</h2>
-            {/* Выбор количества элементов на странице */}
-            <div style={styles.paginationControls}>
-                <label>Показывать:</label>
-                <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                </select>
+            {/* Поле поиска */}
+            <div style={styles.searchContainer}>
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        fetchProjects(1, perPage, e.target.value);
+                    }}
+                    placeholder="Искать проект..."
+                    style={styles.searchInput}
+                />
             </div>
+
+
+            <h2>Список проектов</h2>
 
             <div style={styles.gridContainer}>
                 {projects.map((project) => (
@@ -128,19 +141,46 @@ const ProjectsPage = () => {
                         }}></div>
                         <h3>{project.name}</h3>
                         <p>{project.description}</p>
+                        <p style={styles.rewardText}> Награда: {project.reward} ₽ / за задачу</p>
                         <button onClick={() => openModal(project)} style={styles.subscribeButton}>Подписаться</button>
                     </div>
                 ))}
             </div>
-
-            {/* Пагинация */}
+            
             <br/>
+
+            {/* Выбор количества проектов на странице */}
+            <div style={styles.paginationControls}>
+                <label style={styles.paginationLabel}>Показывать проектов:</label>
+                <select 
+                    value={perPage} 
+                    onChange={(e) => setPerPage(Number(e.target.value))} 
+                    style={styles.paginationSelect}
+                >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                </select>
+            </div>
+
+
+            {/* Улучшенная пагинация */}
             <div style={styles.pagination}>
-                <button onClick={goToPrevPage} disabled={currentPage === 1} style={styles.pageButton}>
+                <button 
+                    onClick={goToPrevPage} 
+                    disabled={currentPage === 1} 
+                    style={currentPage === 1 ? { ...styles.pageButton, ...styles.pageButtonDisabled } : styles.pageButton}>
                     ⬅ Назад
                 </button>
-                <span> Страница {currentPage} </span>
-                <button onClick={goToNextPage} disabled={currentPage === totalPages} style={styles.pageButton}>
+
+                <span style={{ color: "white", fontWeight: "bold" }}>
+                    Страница {currentPage} из {totalPages}
+                </span>
+
+                <button 
+                    onClick={goToNextPage} 
+                    disabled={currentPage === totalPages} 
+                    style={currentPage === totalPages ? { ...styles.pageButton, ...styles.pageButtonDisabled } : styles.pageButton}>
                     Вперед ➡
                 </button>
             </div>
@@ -209,6 +249,20 @@ const styles = {
         margin: "0 auto", // Центрируем контент
         padding: "20px", // Добавляем отступы
     },
+    searchContainer: {
+        display: "flex",
+        justifyContent: "center",
+        marginBottom: "15px",
+    },
+    
+    searchInput: {
+        width: "80%",
+        padding: "10px",
+        fontSize: "16px",
+        border: "1px solid #ccc",
+        borderRadius: "5px",
+        textAlign: "center"
+    },
     gridContainer: {
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
@@ -266,6 +320,64 @@ const styles = {
         padding: "10px",
         cursor: "pointer",
         borderRadius: "5px"
+    },
+    pagination: {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop: "20px",
+        gap: "10px",
+        background:  " #000000", //"linear-gradient(135deg, #ff6600, #000000)",
+        padding: "10px",
+        borderRadius: "10px",
+        boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.3)",
+    },
+    pageButton: {
+        padding: "10px 20px",
+        cursor: "pointer",
+        border: "none",
+        borderRadius: "5px",
+        fontSize: "14px",
+        fontWeight: "bold",
+        background: "#ff6600",  // Цвет кнопки
+        color: "white",
+        transition: "background 0.3s ease-in-out",
+    },
+    pageButtonDisabled: {
+        background: "#888",
+        cursor: "not-allowed",
+    },    
+    paginationControls: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "10px",
+        background: "#e6e6e6",// "linear-gradient(135deg, #ffffff, #e6e6e6)", // Градиентный фон
+        padding: "12px 20px",
+        borderRadius: "10px",
+        boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
+        marginBottom: "20px",
+        fontSize: "16px",
+        fontWeight: "bold",
+    },
+    
+    paginationLabel: {
+        color: "#333",
+    },
+    
+    paginationSelect: {
+        padding: "8px 12px",
+        fontSize: "16px",
+        fontWeight: "bold",
+        borderRadius: "5px",
+        border: "1px solid #ccc",
+        cursor: "pointer",
+        backgroundColor: "#fff",
+        transition: "all 0.3s ease",
+    },
+    
+    paginationSelectHover: {
+        backgroundColor: "#f0f0f0",
     }
 };
 
