@@ -34,6 +34,13 @@ public class SubscribeService {
         return projects;
     }
 
+    public List<SubscribeResponse> getSubscribesByProjectId(Integer id) {
+        var projects = getSubscribes().stream().filter(s -> s.getProjectId().equals(id)).toList();
+
+        return projects;
+    }
+
+
     public ResponseEntity<String> unsubscribeFromProject(Integer id) {
         var projectsMono = serverClient.unsubscribeFromProject(id, preferencesStorage.getDeviceUUID());
         var projects = projectsMono.block();

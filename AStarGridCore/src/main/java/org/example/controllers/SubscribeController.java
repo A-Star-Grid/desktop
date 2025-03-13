@@ -29,6 +29,11 @@ public class SubscribeController {
         return ResponseEntity.ok(subscribeService.getSubscribes());
     }
 
+    @GetMapping("/subscribes_by_project_id")
+    public ResponseEntity<List<SubscribeResponse>> getSubscribesByProjectId(@PathVariable int id) {
+        return ResponseEntity.ok(subscribeService.getSubscribesByProjectId(id));
+    }
+
     @PostMapping("/unsubscribe")
     public ResponseEntity<String> unsubscribeFromProject(
             @RequestParam() int id) {

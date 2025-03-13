@@ -2,14 +2,16 @@ import React, { useEffect, useState } from "react";
 
 const SubscriptionsPage = () => {
     const [subscriptions, setSubscriptions] = useState([]);
-    const [projectDetails, setProjectDetails] = useState({}); // Храним информацию о проектах
+    const [projectDetails, setProjectDetails] = useState({});
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filteredProjects, setFilteredProjects] = useState([]);
 
     useEffect(() => {
         fetch("http://localhost:8082/subscribes/subscribes_list")
             .then((res) => res.json())
             .then((data) => {
                 setSubscriptions(data);
-                data.forEach((sub) => fetchProjectDetails(sub.projectId)); // Загружаем информацию о проектах
+                data.forEach((sub) => fetchProjectDetails(sub.projectId));
             })
             .catch((error) => console.error("Ошибка загрузки подписок:", error));
     }, []);
@@ -20,7 +22,7 @@ const SubscriptionsPage = () => {
             .then((project) => {
                 setProjectDetails((prevDetails) => ({
                     ...prevDetails,
-                    [projectId]: project[0] // Берем первый элемент списка (сервер возвращает массив)
+                    [projectId]: project[0]
                 }));
             })
             .catch((error) => console.error("Ошибка загрузки проекта:", error));
@@ -39,14 +41,43 @@ const SubscriptionsPage = () => {
             .catch((error) => console.error("Ошибка отписки:", error));
     };
 
+    const handleSearch = (event) => {
+        const query = event.target.value;
+        setSearchQuery(query);
+
+        if (query.length > 0) {
+            fetch(`http://localhost:8082/project/search?name=${query}`)
+                .then((res) => res.json())
+                .then((projects) => {
+                    setFilteredProjects(projects.map(p => p.id));
+                })
+                .catch((error) => console.error("Ошибка поиска проекта:", error));
+        } else {
+            setFilteredProjects([]);
+        }
+    };
+
+    const displayedSubscriptions = subscriptions.filter((sub) =>
+        filteredProjects.length === 0 || filteredProjects.includes(sub.projectId)
+    );
+
     return (
         <div style={styles.container}>
             <h2>Мои подписки</h2>
-            {subscriptions.length === 0 ? (
+
+            <input
+                type="text"
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={handleSearch}
+                style={styles.searchInput}
+            />
+
+            {displayedSubscriptions.length === 0 ? (
                 <p>У вас нет активных подписок.</p>
             ) : (
                 <div style={styles.gridContainer}>
-                    {subscriptions.map((sub) => {
+                    {displayedSubscriptions.map((sub) => {
                         const project = projectDetails[sub.projectId];
 
                         return (
@@ -97,6 +128,14 @@ const styles = {
         maxWidth: "900px",
         margin: "0 auto",
         padding: "20px",
+    },
+    searchInput: {
+        width: "100%",
+        padding: "10px",
+        marginBottom: "15px",
+        border: "1px solid #ccc",
+        borderRadius: "5px",
+        fontSize: "16px",
     },
     gridContainer: {
         display: "grid",

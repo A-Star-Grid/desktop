@@ -113,6 +113,8 @@ const ProjectsPage = () => {
 
     return (
         <div style={styles.container}>
+            <h2>Список проектов</h2>
+
             {/* Поле поиска */}
             <div style={styles.searchContainer}>
                 <input
@@ -126,10 +128,7 @@ const ProjectsPage = () => {
                     style={styles.searchInput}
                 />
             </div>
-
-
-            <h2>Список проектов</h2>
-
+            
             <div style={styles.gridContainer}>
                 {projects.map((project) => (
                     <div key={project.id} style={styles.projectCard}>
@@ -173,7 +172,7 @@ const ProjectsPage = () => {
                     ⬅ Назад
                 </button>
 
-                <span style={{ color: "white", fontWeight: "bold" }}>
+                <span style={{ color: "black", fontWeight: "bold" }}>
                     Страница {currentPage} из {totalPages}
                 </span>
 
@@ -254,14 +253,13 @@ const styles = {
         justifyContent: "center",
         marginBottom: "15px",
     },
-    
     searchInput: {
-        width: "80%",
+        width: "100%",
         padding: "10px",
-        fontSize: "16px",
+        marginBottom: "15px",
         border: "1px solid #ccc",
         borderRadius: "5px",
-        textAlign: "center"
+        fontSize: "16px",
     },
     gridContainer: {
         display: "grid",
@@ -322,15 +320,16 @@ const styles = {
         borderRadius: "5px"
     },
     pagination: {
+        border: "1px solid #ccc",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         marginTop: "20px",
         gap: "10px",
-        background:  " #000000", //"linear-gradient(135deg, #ff6600, #000000)",
+        background:  "#e6e6e6", //"linear-gradient(135deg, #ff6600, #000000)",
         padding: "10px",
         borderRadius: "10px",
-        boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.3)",
+        boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
     },
     pageButton: {
         padding: "10px 20px",
@@ -352,13 +351,14 @@ const styles = {
         alignItems: "center",
         justifyContent: "center",
         gap: "10px",
-        background: "#e6e6e6",// "linear-gradient(135deg, #ffffff, #e6e6e6)", // Градиентный фон
+      //  background: "#e6e6e6",// "linear-gradient(135deg, #ffffff, #e6e6e6)", // Градиентный фон
         padding: "12px 20px",
         borderRadius: "10px",
-        boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
+        boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
         marginBottom: "20px",
         fontSize: "16px",
         fontWeight: "bold",
+        border: "1px solid #ccc",
     },
     
     paginationLabel: {
