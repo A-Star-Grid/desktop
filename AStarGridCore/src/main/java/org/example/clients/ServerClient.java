@@ -4,12 +4,10 @@ import org.example.configurations.AppSettings;
 import org.example.models.*;
 import org.example.models.dto.*;
 import org.example.services.PreferencesStorage;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -44,6 +42,10 @@ public class ServerClient extends ServerClientBase {
 
     public Mono<ProjectsResponse> getProjects() {
         return getWithRetry("/projects", ProjectsResponse.class);
+    }
+
+    public Mono<String> getStatistic() {
+        return getWithRetry("/user_statistics", String.class);
     }
 
     public Mono<Void> downloadOvaImage(String saveDirectory, String fileName) {

@@ -160,9 +160,7 @@ public class ComputeService {
                 ).block();
             }
 
-            if (virtualMachine.getIp() == null) {
-                virtualMachine.setIp(vBoxClient.getVirtualMachineIp(virtualMachineName));
-            }
+            virtualMachine.setIp(vBoxClient.getVirtualMachineIp(virtualMachineName));
 
             var ip = virtualMachine.getIp();
             System.out.println(ip);
@@ -210,6 +208,9 @@ public class ComputeService {
             var resultArchivePath = projectPath + "/output.zip";
             var dockerfilePath = "/home/zemlianin/";
             var taskPath = projectPath + "/" + taskUuid;
+
+            // Need after creating from ova
+            sshClient.executeCommand("rm /EMPTY");
 
             sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + taskPath);
 
