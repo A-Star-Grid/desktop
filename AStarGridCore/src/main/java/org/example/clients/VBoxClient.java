@@ -37,10 +37,9 @@ public class VBoxClient {
             return false;
         }
 
-        var commandBuilder = VBoxManageCommandBuilder.create();
-
         var resource = new ClassPathResource(vBoxConfig.defaultImagePath);
 
+        var commandBuilder = VBoxManageCommandBuilder.create();
         var command = commandBuilder
                 .executable(settingService.getVirtualBoxPath())
                 .createFromOVA(resource.getPath(), virtualMachineName)

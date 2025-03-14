@@ -5,6 +5,8 @@ import os
 from functools import wraps
 from flasgger import Swagger
 import json
+from collections import defaultdict
+import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -31,19 +33,25 @@ app.config['SWAGGER'] = {"uiversion": 3}
 swagger = Swagger(app, template=swagger_template)
 
 # Dummy user
-USER = {'username': 'test_user', 'password': 'password'}
+USERS = {
+    "test_user": {
+        "password": "password",
+        "email": "test@example.com",
+        "balance": 0  # Начальный баланс
+    }
+}
 
 # Хранилище refresh токенов
 REFRESH_TOKENS = {}
 
 # Dummy projects
 PROJECTS = [
-    {"id": 1, "name": "Project A", "description": "Description A", "image": "image1.png", "reward": 100},
-    {"id": 2, "name": "Project B", "description": "Description B", "image": "image2.png", "reward": 200},
-    {"id": 3, "name": "Project C", "description": "Description C", "image": "image3.png", "reward": 300},
-    {"id": 4, "name": "Project D", "description": "Description D", "image": "image4.png", "reward": 400},
-    {"id": 5, "name": "Project E", "description": "Description E", "image": "image5.png", "reward": 500},
-    {"id": 6, "name": "Project F", "description": "Description F", "image": "image6.png", "reward": 600},
+    {"id": 1, "name": "Project of Biba and Boba", "description": "Is a project of implement LLM for jocks", "image": "image1.png", "reward": 100},
+    {"id": 2, "name": "Pupa-GPT", "description": "Project that realize GPT model in Rassian lang", "image": "image2.png", "reward": 200},
+    {"id": 3, "name": "Lupa-GPT", "description": "Project without Pupa", "image": "image3.png", "reward": 300},
+    {"id": 4, "name": "Detulie AI", "description": "Is a AI that coping maniers of John Detulie", "image": "image4.png", "reward": 400},
+    {"id": 5, "name": "OOO Roga and Copita", "description": "Collect roga and copita", "image": "image5.png", "reward": 500},
+    {"id": 6, "name": "AOA The Best Project", "description": "Project about best practics in programming", "image": "image6.png", "reward": 600},
 ]
 
 SUBSCRIPTIONS = {}
@@ -142,9 +150,9 @@ def refresh_token(decoded_token):  # изменено имя функции
     return jsonify({'accessToken': new_access_token, 'refreshToken': new_refresh_token})
 
 
-@app.route('/projects', methods=['GET'])
+@app.route('/projects_paginate', methods=['GET'])
 @token_required
-def get_projects(decoded_token):
+def get_projects_paginate(decoded_token):
     """Get paginated list of projects
     ---
     security:
@@ -209,11 +217,52 @@ def get_projects(decoded_token):
     return jsonify({
         "total": total_projects,
         "page": page,
-        "per_page": per_page,
-        "total_pages": total_pages,
+        "perPage": per_page,
+        "totalPages": total_pages,
         "projects": paginated_projects
     }), 200
 
+
+@app.route('/projects', methods=['GET'])
+@token_required
+def get_projects(decoded_token):
+    """Get paginated list of projects
+    ---
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: List of paginated projects
+        schema:
+	  type: object
+          properties:
+            projects:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  image:
+                    type: string
+                  reward:
+                    type: integer
+    """
+    #page = request.args.get('page', 1, type=int)
+    #per_page = request.args.get('per_page', 3, type=int)
+
+    #total_projects = len(PROJECTS)
+    #total_pages = (total_projects + per_page - 1) // per_page  # Вычисляем общее число страниц
+
+    #start = (page - 1) * per_page
+    #end = start + per_page
+    # paginated_projects = PROJECTS[start:end]
+
+    return jsonify({'projects': PROJECTS}), 200
 
 
 @app.route('/login', methods=['POST'])
@@ -236,11 +285,14 @@ def login():
         description: JWT tokens returned
     """
     data = request.get_json()
-    if data and data.get('username') == USER['username'] and data.get('password') == USER['password']:
-        access_token = generate_access_token(USER['username'])
-        refresh_token = generate_refresh_token(USER['username'])
+    username = data.get('username')
+    password = data.get('password')
 
+    if username in USERS and USERS[username]['password'] == password:
+        access_token = generate_access_token(username)
+        refresh_token = generate_refresh_token(username)
         return jsonify({'accessToken': access_token, 'refreshToken': refresh_token})
+    
     return jsonify({'message': 'Invalid credentials'}), 401
 
 
@@ -463,15 +515,22 @@ def unsubscribe(decoded_token):
 @app.route('/user', methods=['GET'])
 @token_required
 def get_user(decoded_token):
-    """Get user info from JWT
+    """Get user info
     ---
     security:
       - Bearer: []
     responses:
       200:
-        description: User info
+        description: User info with balance and email
     """
-    return jsonify({'username': decoded_token['user']}), 200
+    username = decoded_token['user']
+    user_data = USERS.get(username, {})
+    return jsonify({
+        'username': username,
+        'email': user_data.get('email'),
+        'balance': user_data.get('balance')
+    }), 200
+
 
 TASK_MAPPING = {
     1: "286da1e4-fbef-4243-b1ac-d385da123ee0",
@@ -566,8 +625,7 @@ def download_task(decoded_token):
 @app.route('/upload_result', methods=['POST'])
 @token_required
 def upload_result(decoded_token):
-    """
-    Upload result archive
+    """Upload result archive and update balance
     ---
     security:
       - Bearer: []
@@ -590,7 +648,7 @@ def upload_result(decoded_token):
         required: true
     responses:
       200:
-        description: File uploaded successfully
+        description: File uploaded successfully, balance updated
       400:
         description: Missing parameters or file
     """
@@ -606,11 +664,100 @@ def upload_result(decoded_token):
     save_path = os.path.join("results", f"{task_uuid}_{device_uuid}.zip")
     file.save(save_path)
 
+    # Найти проект и его вознаграждение
+    project = next((p for p in PROJECTS if p["id"] == project_id), None)
+    if not project:
+        return jsonify({'message': 'Project not found'}), 404
+
+    reward = project["reward"]
+
+    # Обновляем баланс пользователя
+    username = decoded_token['user']
+    USERS[username]['balance'] += reward
+
+    # **Обновляем статистику пользователя**
+    update_user_statistics(username, device_uuid, project_id)
+
     return jsonify({
         'message': f'Result for task {task_uuid} uploaded successfully',
-        'project_id': project_id,
-        'device_uuid': device_uuid
+        'reward': reward,
+        'new_balance': USERS[username]['balance']
     }), 200
+
+
+# Хранилище статистики (6 дней захардкожено, последний день обновляется динамически)
+USER_STATISTICS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
+# Добавляем захардкоженные данные
+HARD_CODED_STATISTICS = [
+    {"date": (datetime.datetime.utcnow() - datetime.timedelta(days=i)).strftime('%Y-%m-%d'),
+     "deviceUuid": "00000000-0000-0000-0000-000000000000",
+     "tasks": {
+         1: 2,  # 2 задачи выполнено по проекту 1
+         2: 1,  # 1 задача по проекту 2
+         3: 3   # 3 задачи по проекту 3
+     }} for i in range(6)
+]
+
+@app.route('/user_statistics', methods=['GET'])
+@token_required
+def get_user_statistics(decoded_token):
+    """
+    Get user task statistics for the last 7 days
+    ---
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: User statistics including predefined data
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            statistics:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  tasks:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      description: Number of completed tasks per project
+    """
+    username = decoded_token['user']
+
+    # Получаем динамическую статистику пользователя
+    user_stats = USER_STATISTICS.get(username, {})
+
+    # Преобразуем данные в нужный формат
+    formatted_stats = {
+        device_uuid: {
+            "tasks": {project_id: project_tasks for project_id, project_tasks in projects.items()}
+        }
+        for device_uuid, projects in user_stats.items()
+    }
+
+    # Добавляем захардкоженные данные, если их нет
+    if "00000000-0000-0000-0000-000000000000" not in formatted_stats:
+        formatted_stats["00000000-0000-0000-0000-000000000000"] = {
+            "tasks": {entry["id"]: entry["reward"] // 100 for entry in PROJECTS}  # Пример данных
+        }
+
+    return jsonify({
+        "username": username,
+        "statistics": formatted_stats
+    }), 200
+
+
+
+def update_user_statistics(username, device_uuid, project_id):
+    """
+    Update user statistics for completed tasks.
+    """
+    USER_STATISTICS[username][device_uuid][project_id] += 1
+
 
 if __name__ == '__main__':
     os.makedirs('data', exist_ok=True)
