@@ -3,26 +3,25 @@ import { Link, useNavigate } from "react-router-dom";
 
 const Header = () => {
     const [username, setUsername] = useState(localStorage.getItem("username") || null);
+    const [email, setEmail] = useState("");
+    const [balance, setBalance] = useState(0);
     const [isComputingActive, setIsComputingActive] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        if (!username) {
-            fetch("http://localhost:8082/auth/getCurrentUser")
-                .then(response => {
-                    if (!response.ok) throw new Error("Ошибка запроса");
-                    return response.json();
-                })
-                .then(data => {
-                    setUsername(data.username);
-                    localStorage.setItem("username", data.username);
-                })
-                .catch(() => {
-                    setUsername(null);
-                    localStorage.removeItem("username");
-                });
-        }
+    useEffect(() => {        
+        fetch("http://localhost:8082/auth/getCurrentUser")
+            .then(response => response.json())
+            .then(data => {
+                setUsername(data.username);
+                setEmail(data.email);
+                setBalance(data.balance);
+                localStorage.setItem("username", data.username);
+            })
+            .catch(() => {
+                setUsername(null);
+                localStorage.removeItem("username");
+            });
 
         fetch("http://localhost:8082/settings/current")
             .then(response => response.json())
@@ -105,6 +104,12 @@ const Header = () => {
                             </svg>
                         </div>
                         <p style={styles.usernameText}>{username}</p>
+                        <p style={styles.emailText}>{email}</p>
+                        <p onClick={() => window.location.href = "https://example.com/edit_user"} style={styles.editButton}>Редактировать</p>
+
+                        <p style={styles.balanceText}>Баланс: {balance} ₽</p>
+                        <p onClick={() => window.location.href = "https://example.com/get_coins"} style={styles.withdrawButton}>Вывод средств</p>
+
                         <button onClick={handleLogout} style={styles.logoutButton}>Выйти</button>
                         <button onClick={toggleModal} style={styles.closeButton}>Закрыть</button>
                     </div>
@@ -180,9 +185,8 @@ const styles = {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        minWidth: "300px",  // Минимальная ширина
-        maxWidth: "400px",  // Максимальная ширина
-        width: "10%",  // Относительная ширина, чтобы не занимало весь экран
+        minWidth: "320px",
+        maxWidth: "400px",
     },
     iconContainer: {
         marginBottom: "10px",
@@ -190,28 +194,55 @@ const styles = {
     usernameText: {
         fontSize: "20px",
         fontWeight: "bold",
+        marginBottom: "5px",
+    },
+    emailText: {
+        fontSize: "16px",
+        color: "#555",
+        marginBottom: "5px",
+    },
+    editButton: {
+        fontSize: "14px",
+        color: "#777",
+        textDecoration: "underline",
+        cursor: "pointer",
+        marginBottom: "15px",
+        transition: "color 0.2s",
+    },
+    balanceText: {
+        fontSize: "16px",
+        color: "#28a745",
+        fontWeight: "bold",
+        marginBottom: "1px",
+    },
+    withdrawButton: {
+        fontSize: "14px",
+        color: "#777",
+        textDecoration: "underline",
+        cursor: "pointer",
         marginBottom: "20px",
+        transition: "color 0.2s",
     },
     logoutButton: {
         width: "100%",
-        padding: "10px 15px",
-        cursor: "pointer",
-        border: "none",
-        backgroundColor: "#ff4d4d",
+        marginBottom: "10px",
+        background: "linear-gradient(135deg, #ff4d4d, #cc0000)",
         color: "white",
+        border: "none",
+        padding: "10px 15px",
         borderRadius: "5px",
         transition: "background 0.3s",
-        marginBottom: "10px",
+        cursor: "pointer", // Добавлено
     },
     closeButton: {
         width: "100%",
-        padding: "8px 15px",
-        cursor: "pointer",
-        border: "none",
-        backgroundColor: "#ccc",
+        background: "#ccc",
         color: "black",
+        border: "none",
+        padding: "8px 15px",
         borderRadius: "5px",
         transition: "background 0.3s",
+        cursor: "pointer", // Добавлено
     },
 };
 
