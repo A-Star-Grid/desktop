@@ -61,7 +61,11 @@ public class ComputeService {
         virtualMachineName = "vm-" + preferencesStorage.getDeviceUUID().toString();
 
         if (vBoxClient.createVirtualMachineIfNotExist(virtualMachineName)) {
-            vBoxClient.addSharedFolderToVirtualMachine(virtualMachineName);
+            try {
+                vBoxClient.addSharedFolderToVirtualMachine(virtualMachineName);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         virtualMachine.setName(virtualMachineName);
@@ -159,15 +163,12 @@ public class ComputeService {
                         taskUuid + ".zip"
                 ).block();
             }
-
+            // TODO Need delete ip logic
             virtualMachine.setIp(vBoxClient.getVirtualMachineIp(virtualMachineName));
 
-            var ip = virtualMachine.getIp();
-            System.out.println(ip);
 
             var outputPath = runDockerComputation(
                     projectId,
-                    ip,
                     taskUuid.toString(),
                     taskUuid + ".zip",
                     computeResource);
@@ -193,12 +194,11 @@ public class ComputeService {
 
     private String runDockerComputation(
             Integer projectId,
-            String virtualMachineIp,
             String taskUuid,
             String archiveName,
             ComputeResource computeResource) {
         try {
-            var sshClient = new SshClient(virtualMachineIp, "zemlianin", "1234");
+            var sshClient = new SshClient("localhost",8022, "root", "1234");
 
             var dockerManager = new DockerManager(sshClient);
 
@@ -206,7 +206,7 @@ public class ComputeService {
             var taskArchivePath = projectPath + "/" + archiveName;
             var resultDir = projectPath + "/output";
             var resultArchivePath = projectPath + "/output.zip";
-            var dockerfilePath = "/home/zemlianin/";
+            var dockerfilePath = "/root/";
             var taskPath = projectPath + "/" + taskUuid;
 
             // Need after creating from ova
@@ -232,6 +232,7 @@ public class ComputeService {
 
             return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, "output.zip").toString();
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Container was not run");
         }
     }

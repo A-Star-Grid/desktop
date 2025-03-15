@@ -9,6 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +40,7 @@ public class VBoxClient {
             return false;
         }
 
-        var resource = new ClassPathResource(vBoxConfig.defaultImagePath);
+        var resource = new ClassPathResource(vBoxConfig.getDefaultImagePath());
 
         var commandBuilder = VBoxManageCommandBuilder.create();
         var command = commandBuilder
@@ -77,7 +80,7 @@ public class VBoxClient {
         waitForVirtualMachineState(virtualMachineName, VirtualMachineState.RUNNING, 60);
     }
 
-    public void addSharedFolderToVirtualMachine(String virtualMachineName) {
+    public void addSharedFolderToVirtualMachine(String virtualMachineName) throws IOException {
         var states = List.of(VirtualMachineState.POWEROFF);
 
         if (!virtualMachineCheckState(virtualMachineName, states)) {
@@ -85,6 +88,10 @@ public class VBoxClient {
         }
 
         var commandBuilder = VBoxManageCommandBuilder.create();
+
+        if (!Files.exists(Path.of(vBoxConfig.sharedFolder))) {
+            Files.createDirectories(Path.of(vBoxConfig.sharedFolder));
+        }
 
         var command = commandBuilder
                 .executable(settingService.getVirtualBoxPath())

@@ -3,6 +3,7 @@
 **/vms
 *.ova
 ubuntu_server_for_compute.ova
+server_for_compute.ova
 
 target/
 !.mvn/wrapper/maven-wrapper.jar

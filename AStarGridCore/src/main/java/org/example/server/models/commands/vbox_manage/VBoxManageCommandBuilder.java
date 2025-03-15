@@ -46,8 +46,8 @@ public class VBoxManageCommandBuilder {
     public VBoxManageCommandBuilder addSharedFolder(String path, String vmName){
         commandParts.add("sharedfolder add");
         commandParts.add(escapeArgument(vmName));
-        commandParts.add("--name \"shared\"");
-        commandParts.add("--hostpath" + escapeArgument(path));
+        commandParts.add("--name \"tasks\" ");
+        commandParts.add("--hostpath " + escapeArgument(path));
         commandParts.add("--automount");
         return this;
     }

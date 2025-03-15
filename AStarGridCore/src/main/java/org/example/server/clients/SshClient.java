@@ -11,20 +11,34 @@ public class SshClient {
     private final String host;
     private final String username;
     private final String password;
+    private final Integer port;
 
-    public SshClient(String host, String username, String password) {
+    public SshClient(String host, Integer port, String username, String password) {
         this.host = host;
         this.username = username;
         this.password = password;
+        this.port = port;
     }
 
     public CommandResult executeCommand(String command) throws Exception {
         JSch jsch = new JSch();
-        Session session = jsch.getSession(username, host, 22);
+        Session session = jsch.getSession(username, host, port);
         session.setPassword(password);
 
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
+
+        // Современные KEX (Key Exchange)
+        config.put("kex", "curve25519-sha256@libssh.org,curve25519-sha256,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256");
+
+        // Шифрование (Cipher)
+        config.put("cipher.s2c", "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr");
+        config.put("cipher.c2s", "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr");
+
+        // Message Authentication Code (MAC)
+        config.put("mac.s2c", "hmac-sha2-512,hmac-sha2-256");
+        config.put("mac.c2s", "hmac-sha2-512,hmac-sha2-256");
+
         session.setConfig(config);
         session.connect(10_000);
 
