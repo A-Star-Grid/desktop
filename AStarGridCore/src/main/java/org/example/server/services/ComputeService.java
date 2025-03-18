@@ -114,7 +114,7 @@ public class ComputeService {
 
                         try {
                             uploadResult(taskUuid, subscribe.getProjectId(), results.get(taskUuid));
-                            Files.deleteIfExists(Path.of(results.get(taskUuid)));
+                            Files.deleteIfExists(Path.of(appSettings.taskArchivesDirectory, taskUuid.toString()));
                             results.remove(taskUuid);
                         } catch (Exception e) {
                             System.out.println("Error of upload task result");
@@ -203,11 +203,12 @@ public class ComputeService {
             var dockerManager = new DockerManager(sshClient);
 
             var projectPath = "/mnt/shared/Project" + projectId;
-            var taskArchivePath = projectPath + "/" + archiveName;
-            var resultDir = projectPath + "/output";
-            var resultArchivePath = projectPath + "/output.zip";
-            var dockerfilePath = "/root/";
             var taskPath = projectPath + "/" + taskUuid;
+            var taskArchivePath = projectPath + "/" + archiveName;
+            var resultDir = taskPath + "/output";
+            var resultArchivePath = taskPath + "/output.zip";
+            var dockerfilePath = "/root/";
+
 
             // Need after creating from ova
             sshClient.executeCommand("rm /EMPTY");
@@ -217,20 +218,20 @@ public class ComputeService {
             var containerName = "compute_project_" + projectId;
             dockerManager.startContainer(containerName, taskPath, dockerfilePath, computeResource);
 
-            dockerManager.waitForCompletion(containerName).thenRun(() -> {
-                try {
-                    sshClient.executeCommand("rm -f " + resultArchivePath);
-                    sshClient.executeCommand("zip -r " + resultArchivePath + " " + projectPath);
-                    sshClient.executeCommand("rm -f " + resultDir);
+            dockerManager.waitForCompletion(containerName).get();
 
-                    System.out.println("Результаты успешно сформированы.");
-                } catch (Exception e) {
-                    System.err.println("Ошибка при обработке результата: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            try {
+              //  var r1 = sshClient.executeCommand("rm -f " + resultArchivePath);
+                var r2 = sshClient.executeCommand("zip -r " + resultArchivePath + " " + resultDir );
+    //            var r3 = sshClient.executeCommand("rm -f " + resultDir);
 
-            return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, "output.zip").toString();
+                System.out.println("Результаты успешно сформированы.");
+            } catch (Exception e) {
+                System.err.println("Ошибка при обработке результата: " + e.getMessage());
+                e.printStackTrace();
+            }
+
+            return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, taskUuid, "output.zip").toString();
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Container was not run");
