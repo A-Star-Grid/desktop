@@ -20,7 +20,7 @@ public class Main {
             });
             guiThread.start();
 
-            org.example.server.Main.main(new String[]{});
+            org.example.core.Main.main(new String[]{});
         }
     }
 }
