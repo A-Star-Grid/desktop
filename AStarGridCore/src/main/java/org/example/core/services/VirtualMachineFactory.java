@@ -6,6 +6,7 @@ import org.example.core.models.VirtualMachineState;
 import org.example.core.models.commands.CommandResult;
 import org.example.core.models.commands.host_executor.ICommandExecutor;
 import org.example.core.models.commands.vbox_manage.VBoxManageCommandBuilder;
+import org.example.core.services.settings.ApplicationSettingsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -25,10 +26,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 @Component
 public class VirtualMachineFactory {
     private final VBoxConfig vBoxConfig;
-    private final SettingService settingService;
+    private final ApplicationSettingsService applicationSettingsService;
     private final ICommandExecutor commandExecutor;
     private final AppSettings appSettings;
-    private final PreferencesStorage preferencesStorage;
 
 
     private static Optional<VirtualMachine> instance;
@@ -38,13 +38,12 @@ public class VirtualMachineFactory {
     @Autowired
     public VirtualMachineFactory(VBoxConfig vBoxConfig,
                                  ICommandExecutor commandExecutor,
-                                 SettingService settingService,
+                                 ApplicationSettingsService applicationSettingsService,
                                  PreferencesStorage preferencesStorage,
                                  AppSettings appSettings) {
         this.vBoxConfig = vBoxConfig;
-        this.settingService = settingService;
+        this.applicationSettingsService = applicationSettingsService;
         this.commandExecutor = commandExecutor;
-        this.preferencesStorage = preferencesStorage;
         this.appSettings = appSettings;
         virtualMachineName = "vm-" + preferencesStorage.getDeviceUUID().toString();
         instance = Optional.empty();
@@ -59,7 +58,7 @@ public class VirtualMachineFactory {
 
                 var commandBuilder = VBoxManageCommandBuilder.create();
                 var command = commandBuilder
-                        .executable(settingService.getVirtualBoxPath())
+                        .executable(applicationSettingsService.getVirtualBoxPath())
                         .createFromOVA(resource.getPath(), virtualMachineName)
                         .toString();
 
@@ -104,9 +103,72 @@ public class VirtualMachineFactory {
             instance.get().setIp(vm.getIp());
             instance.get().setSharedFolderPaths(vm.getSharedFolderPath());
             instance.get().setRam(vm.getRam());
+            instance.get().setVirtualMachineState(vm.getVirtualMachineState());
         }
 
         return instance;
+    }
+
+    public Optional<VirtualMachine> setVirtualMachineCpu(Integer cpu) {
+        var vmOptional = getVirtualMachineInfoFromHost();
+
+        if (vmOptional.isEmpty() || vmOptional.get().virtualMachineState != VirtualMachineState.POWEROFF) {
+           throw new IllegalStateException("Невозможно изменить CPU пока виртуальная машина запущена или не создана");
+        }
+
+        var commandBuilder = VBoxManageCommandBuilder.create();
+
+        var command = commandBuilder
+                .executable(applicationSettingsService.getVirtualBoxPath())
+                .setCpu(virtualMachineName, cpu)
+                .toString();
+
+        CommandResult commandResult;
+
+        try {
+            commandResult = commandExecutor.executeCommand(command);
+        } catch (Exception e) {
+            throw new RuntimeException("Не удалось изменить количество CPU");
+        }
+
+        if (!commandResult.isSuccess()){
+            throw new RuntimeException("Не удалось изменить количество CPU");
+        }
+
+        vmOptional.get().setCpu(cpu);
+
+        return vmOptional;
+    }
+
+    public Optional<VirtualMachine> setVirtualMachineRam(Integer ram) {
+        var vmOptional = getVirtualMachineInfoFromHost();
+
+        if (vmOptional.isEmpty() || vmOptional.get().virtualMachineState != VirtualMachineState.POWEROFF) {
+            throw new IllegalStateException("Невозможно изменить RAM пока виртуальная машина запущена или не создана");
+        }
+
+        var commandBuilder = VBoxManageCommandBuilder.create();
+
+        var command = commandBuilder
+                .executable(applicationSettingsService.getVirtualBoxPath())
+                .setRam(virtualMachineName, ram)
+                .toString();
+
+        CommandResult commandResult;
+
+        try {
+            commandResult = commandExecutor.executeCommand(command);
+        } catch (Exception e) {
+            throw new RuntimeException("Не удалось изменить количество RAM");
+        }
+
+        if (!commandResult.isSuccess()){
+            throw new RuntimeException("Не удалось изменить количество RAM");
+        }
+
+        vmOptional.get().setRam(ram);
+
+        return vmOptional;
     }
 
     public void stopVirtualMachine() {
@@ -121,7 +183,7 @@ public class VirtualMachineFactory {
         var commandBuilder = VBoxManageCommandBuilder.create();
 
         var command = commandBuilder
-                .executable(settingService.getVirtualBoxPath())
+                .executable(applicationSettingsService.getVirtualBoxPath())
                 .poweroff(virtualMachineName)
                 .toString();
 
@@ -145,7 +207,7 @@ public class VirtualMachineFactory {
         var commandBuilder = VBoxManageCommandBuilder.create();
 
         var command = commandBuilder
-                .executable(settingService.getVirtualBoxPath())
+                .executable(applicationSettingsService.getVirtualBoxPath())
                 .start(virtualMachineName)
                 .toString();
 
@@ -172,7 +234,7 @@ public class VirtualMachineFactory {
         }
 
         var command = commandBuilder
-                .executable(settingService.getVirtualBoxPath())
+                .executable(applicationSettingsService.getVirtualBoxPath())
                 .addSharedFolder(appSettings.taskArchivesDirectory, vBoxConfig.sharedFolder, virtualMachineName)
                 .toString();
         try {
@@ -185,16 +247,18 @@ public class VirtualMachineFactory {
     private Optional<VirtualMachine> getVirtualMachineInfoFromHost() {
         var commandBuilder = VBoxManageCommandBuilder.create();
         var command = commandBuilder
-                .executable(settingService.getVirtualBoxPath())
+                .executable(applicationSettingsService.getVirtualBoxPath())
                 .getInfo(virtualMachineName)
                 .toString();
 
         CommandResult rawInfo;
+
         try {
             rawInfo = commandExecutor.executeCommand(command);
         } catch (Exception ex) {
             throw new RuntimeException("error of get info about VM");
         }
+
         if (rawInfo.isSuccess()) {
             return Optional.of(parseVirtualMachineInfo(rawInfo.getListStdout()));
         }
@@ -205,7 +269,7 @@ public class VirtualMachineFactory {
     private boolean virtualMachineIsExist(String name) {
         var commandBuilder = VBoxManageCommandBuilder.create();
         var command = commandBuilder
-                .executable(settingService.getVirtualBoxPath())
+                .executable(applicationSettingsService.getVirtualBoxPath())
                 .list()
                 .toString();
         CommandResult result;
@@ -222,7 +286,7 @@ public class VirtualMachineFactory {
     private boolean virtualMachineCheckState(String name, List<VirtualMachineState> states) {
         var commandBuilder = VBoxManageCommandBuilder.create();
         var command = commandBuilder
-                .executable(settingService.getVirtualBoxPath())
+                .executable(applicationSettingsService.getVirtualBoxPath())
                 .getInfo(name)
                 .toString();
 

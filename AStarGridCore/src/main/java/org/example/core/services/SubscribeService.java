@@ -6,6 +6,7 @@ import org.example.core.models.dto.SubscribeRequest;
 import org.example.core.models.dto.SubscribeResponse;
 import org.example.core.models.dto.SubscribeTransport;
 import org.example.core.models.shedule.ScheduleTimeStamp;
+import org.example.core.services.settings.VmSettingsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -16,15 +17,15 @@ import java.util.*;
 public class SubscribeService {
     private final ServerClient serverClient;
     private final PreferencesStorage preferencesStorage;
-    private final SettingService settingService;
+    private final VmSettingsService vmSettingsService;
 
     @Autowired
     public SubscribeService(ServerClient serverClient,
                             PreferencesStorage preferencesStorage,
-                            SettingService settingService) {
+                            VmSettingsService vmSettingsService) {
         this.serverClient = serverClient;
         this.preferencesStorage = preferencesStorage;
-        this.settingService = settingService;
+        this.vmSettingsService = vmSettingsService;
     }
 
     public List<SubscribeResponse> getSubscribes() {
@@ -91,9 +92,9 @@ public class SubscribeService {
 
         var maxComputeResource = getMaxResourceUsage(resourceTimeline);
 
-        if (maxComputeResource.getCpuCores() > settingService.getCpuLimit() ||
-                maxComputeResource.getRam() > settingService.getRamLimit() ||
-                maxComputeResource.getDiskSpace() > settingService.getDiskLimit()
+        if (maxComputeResource.getCpuCores() > vmSettingsService.getCpuLimit() ||
+                maxComputeResource.getRam() > vmSettingsService.getRamLimit() ||
+                maxComputeResource.getDiskSpace() > vmSettingsService.getDiskLimit()
         ) {
             throw new IllegalArgumentException("Overflow of resources limits");
         }

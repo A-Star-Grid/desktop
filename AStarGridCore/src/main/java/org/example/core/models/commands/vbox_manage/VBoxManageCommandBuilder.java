@@ -81,6 +81,20 @@ public class VBoxManageCommandBuilder {
         return this;
     }
 
+    public VBoxManageCommandBuilder setCpu(String vmName, Integer cpu) {
+        commandParts.add("modifyvm");
+        commandParts.add(escapeArgument(vmName));
+        commandParts.add("--cpus " + cpu);
+        return this;
+    }
+
+    public VBoxManageCommandBuilder setRam(String vmName, Integer ram) {
+        commandParts.add("modifyvm");
+        commandParts.add(escapeArgument(vmName));
+        commandParts.add("--memory " + ram);
+        return this;
+    }
+
     public VBoxManageCommandBuilder list() {
         commandParts.add("list vms");
         return this;

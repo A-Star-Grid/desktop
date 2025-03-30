@@ -7,6 +7,8 @@ import org.example.core.models.ComputeResource;
 import org.example.core.models.ComputingTask;
 import org.example.core.models.commands.docker.DockerManager;
 import org.example.core.models.shedule.ScheduleTimeStamp;
+import org.example.core.services.settings.ApplicationSettingsService;
+import org.example.core.services.settings.VmSettingsService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -23,8 +25,8 @@ public class ComputeService {
     private final SubscribeService subscribeService;
     private final ServerClient serverClient;
     private final PreferencesStorage preferencesStorage;
-    private final SettingService settingService;
     private final VirtualMachineFactory virtualMachineFactory;
+    private final ApplicationSettingsService applicationSettingsService;
 
     private final ConcurrentHashMap<ComputingTask, Future<?>> runningTasks = new ConcurrentHashMap<>();
     private final ExecutorService executorService = Executors.newCachedThreadPool();
@@ -34,19 +36,19 @@ public class ComputeService {
                           SubscribeService subscribeService,
                           ServerClient serverClient,
                           PreferencesStorage preferencesStorage,
-                          SettingService settingService,
+                          ApplicationSettingsService applicationSettingsService,
                           VirtualMachineFactory virtualMachineFactory) {
         this.appSettings = appSettings;
         this.subscribeService = subscribeService;
         this.serverClient = serverClient;
         this.preferencesStorage = preferencesStorage;
-        this.settingService = settingService;
         this.virtualMachineFactory = virtualMachineFactory;
+        this.applicationSettingsService = applicationSettingsService;
     }
 
     @Scheduled(fixedDelayString = "${compute.process.interval}")
     public void process() {
-        if (!settingService.isComputationActive()) {
+        if (!applicationSettingsService.isComputationActive()) {
             cancelAllRunningTasks();
             virtualMachineFactory.stopVirtualMachine();
             return;
@@ -103,6 +105,7 @@ public class ComputeService {
                             Files.deleteIfExists(Path.of(appSettings.taskArchivesDirectory, taskUuid.toString()));
                             results.remove(taskUuid);
                         } catch (Exception e) {
+                            e.printStackTrace();
                             System.out.println("Error of upload task result");
                         }
                     });
