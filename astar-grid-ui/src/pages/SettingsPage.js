@@ -5,103 +5,162 @@ const SettingsPage = () => {
     const [ram, setRam] = useState("");
     const [disk, setDisk] = useState("");
     const [vboxPath, setVBoxPath] = useState("");
-    const [computationActive, setComputationActive] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
 
-    // Загружаем текущие настройки при загрузке страницы
-    useEffect(() => {
+    const [initialCpu, setInitialCpu] = useState("");
+    const [initialRam, setInitialRam] = useState("");
+    const [initialDisk, setInitialDisk] = useState("");
+    const [initialVBoxPath, setInitialVBoxPath] = useState("");
+
+    // Общая функция загрузки текущих значений
+    const loadCurrentSettings = () => {
         fetch("http://localhost:8082/settings/current")
             .then(response => response.json())
             .then(data => {
-                setCpu(data.cpuLimit);
-                setRam(data.ramLimit);
-                setDisk(data.diskLimit);
-                setVBoxPath(data.virtualBoxPath);
-                setComputationActive(data.computationActive);
+                setInitialCpu(data.cpuLimit);
+                setInitialRam(data.ramLimit);
+                setInitialDisk(data.diskLimit);
+                setInitialVBoxPath(data.virtualBoxPath);
             })
             .catch(error => console.error("Ошибка загрузки настроек:", error));
+    };
+
+    useEffect(() => {
+        loadCurrentSettings();
     }, []);
 
     const saveSettings = () => {
-        const encodedPath = encodeURIComponent(vboxPath.replace(/\\/g, "/")); // Исправление слэшей
+        const finalCpu = cpu || initialCpu;
+        const finalRam = ram || initialRam;
+        const finalDisk = disk || initialDisk;
+        const finalVBoxPath = vboxPath || initialVBoxPath;
+        const encodedPath = encodeURIComponent(finalVBoxPath.replace(/\\/g, "/"));
 
         Promise.all([
-            fetch(`http://localhost:8082/settings/cpu?cpuCount=${cpu}`, { method: "POST" }),
-            fetch(`http://localhost:8082/settings/ram?ramMB=${ram}`, { method: "POST" }),
-            fetch(`http://localhost:8082/settings/disk?diskGB=${disk}`, { method: "POST" }),
+            fetch(`http://localhost:8082/settings/cpu?cpuCount=${finalCpu}`, { method: "POST" }),
+            fetch(`http://localhost:8082/settings/ram?ramMB=${finalRam}`, { method: "POST" }),
+            fetch(`http://localhost:8082/settings/disk?diskGB=${finalDisk}`, { method: "POST" }),
             fetch(`http://localhost:8082/settings/virtualbox?path=${encodedPath}`, { method: "POST" })
         ])
-            .then(() => setStatusMessage("✅ Настройки сохранены"))
+            .then(() => {
+                setStatusMessage("✅ Настройки сохранены");
+                setCpu("");
+                setRam("");
+                setDisk("");
+                setVBoxPath("");
+                loadCurrentSettings(); // Обновим значения
+            })
             .catch(() => setStatusMessage("❌ Ошибка сохранения настроек"));
     };
 
     const resetSettings = () => {
         fetch("http://localhost:8082/settings/reset", { method: "POST" })
             .then(() => {
-                setStatusMessage("⚙️ Настройки сброшены");
+                setStatusMessage("Настройки сброшены");
                 setCpu("");
                 setRam("");
                 setDisk("");
                 setVBoxPath("");
-                setComputationActive(false);
+                loadCurrentSettings(); // Обновим значения
             })
-            .catch(() => setStatusMessage("❌ Ошибка сброса настроек"));
-    };
-
-    const toggleComputation = () => {
-        fetch(`http://localhost:8082/settings/computation?isActive=${!computationActive}`, { method: "POST" })
-            .then(() => setComputationActive(!computationActive))
-            .catch(() => setStatusMessage("❌ Ошибка изменения состояния вычислений"));
+            .catch(() => setStatusMessage("Ошибка сброса настроек"));
     };
 
     return (
         <div style={styles.pageContainer}>
-            <h2>⚙ Настройки</h2>
+            <h2 style={styles.header}>⚙ Настройки виртуальной машины</h2>
 
             <div style={styles.settingsForm}>
-                <label>CPU:</label>
-                <input type="number" value={cpu} onChange={(e) => setCpu(e.target.value)} />
+                <div style={styles.fieldGroup}>
+                    <label style={styles.label}>Количество ядер CPU:</label>
+                    <input
+                        type="number"
+                        value={cpu}
+                        onChange={(e) => setCpu(e.target.value)}
+                        style={styles.input}
+                        placeholder={initialCpu}
+                        min={1}
+                    />
+                </div>
 
-                <label>RAM:</label>
-                <input type="number" value={ram} onChange={(e) => setRam(e.target.value)} />
+                <div style={styles.fieldGroup}>
+                    <label style={styles.label}>Оперативная память (MB):</label>
+                    <input
+                        type="number"
+                        value={ram}
+                        onChange={(e) => setRam(e.target.value)}
+                        style={styles.input}
+                        placeholder={initialRam}
+                        min={256}
+                    />
+                </div>
 
-                <label>Disk:</label>
-                <input type="number" value={disk} onChange={(e) => setDisk(e.target.value)} />
+                <div style={styles.fieldGroup}>
+                    <label style={styles.label}>Размер диска (GB):</label>
+                    <input
+                        type="number"
+                        value={disk}
+                        onChange={(e) => setDisk(e.target.value)}
+                        style={styles.input}
+                        placeholder={initialDisk}
+                        min={1}
+                    />
+                </div>
 
-                <label>VirtualBox Path:</label>
-                <input type="text" value={vboxPath} onChange={(e) => setVBoxPath(e.target.value)} />
+                <div style={styles.fieldGroup}>
+                    <label style={styles.label}>Путь до VirtualBox:</label>
+                    <input
+                        type="text"
+                        value={vboxPath}
+                        onChange={(e) => setVBoxPath(e.target.value)}
+                        style={styles.input}
+                        placeholder={initialVBoxPath || "C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe"}
+                    />
+                </div>
 
                 <div style={styles.buttonContainer}>
                     <button onClick={saveSettings} style={styles.saveButton}>Сохранить</button>
-                    <button onClick={resetSettings} style={styles.resetButton}>Сбросить настройки</button>
+                    <button onClick={resetSettings} style={styles.resetButton}>Сбросить</button>
                 </div>
             </div>
-
-            <h3>Статус вычислений: {computationActive ? "🟢 Активны" : "🔴 Остановлены"}</h3>
-            <button onClick={toggleComputation} style={styles.toggleButton}>
-                {computationActive ? "Остановить вычисления" : "Запустить вычисления"}
-            </button>
 
             {statusMessage && <p style={styles.statusMessage}>{statusMessage}</p>}
         </div>
     );
 };
 
-// Стили
 const styles = {
     pageContainer: {
-        maxWidth: "600px", // Ограниечение ширины
-        margin: "0 auto", // Центрирование страницы
-        padding: "20px", // Внутренние отступы
+        maxWidth: "600px",
+        margin: "0 auto",
+        padding: "20px",
+        fontFamily: "Segoe UI, sans-serif"
+    },
+    header: {
+        textAlign: "center",
+        marginBottom: "20px"
     },
     settingsForm: {
         display: "flex",
         flexDirection: "column",
-        gap: "10px",
-        backgroundColor: "#f9f9f9",
-        padding: "15px",
-        borderRadius: "10px",
+        gap: "15px",
+        backgroundColor: "#f1f1f1",
+        padding: "20px",
+        borderRadius: "12px",
+        boxShadow: "0 0 10px rgba(0,0,0,0.05)"
+    },
+    fieldGroup: {
+        display: "flex",
+        flexDirection: "column"
+    },
+    label: {
+        marginBottom: "5px",
+        fontWeight: "bold"
+    },
+    input: {
+        padding: "8px",
         border: "1px solid #ccc",
+        borderRadius: "5px"
     },
     buttonContainer: {
         display: "flex",
@@ -109,32 +168,24 @@ const styles = {
         marginTop: "10px"
     },
     saveButton: {
-        backgroundColor: "green",
+        backgroundColor: "#28a745",
         color: "white",
         border: "none",
-        padding: "10px",
+        padding: "10px 16px",
         cursor: "pointer",
         borderRadius: "5px"
     },
     resetButton: {
-        backgroundColor: "red",
+        backgroundColor: "#dc3545",
         color: "white",
         border: "none",
-        padding: "10px",
+        padding: "10px 16px",
         cursor: "pointer",
         borderRadius: "5px"
     },
-    toggleButton: {
-        marginTop: "10px",
-        backgroundColor: "blue",
-        color: "white",
-        border: "none",
-        padding: "10px",
-        cursor: "pointer",
-        borderRadius: "5px",
-    },
     statusMessage: {
-        marginTop: "10px",
+        marginTop: "15px",
+        textAlign: "center",
         fontWeight: "bold",
         color: "#333"
     }
