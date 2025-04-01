@@ -6,9 +6,9 @@ import org.example.core.configurations.AppSettings;
 import org.example.core.models.ComputeResource;
 import org.example.core.models.ComputingTask;
 import org.example.core.models.commands.docker.DockerManager;
+import org.example.core.models.dto.SubscribeResponse;
 import org.example.core.models.shedule.ScheduleTimeStamp;
 import org.example.core.services.settings.ApplicationSettingsService;
-import org.example.core.services.settings.VmSettingsService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
 
@@ -59,6 +60,32 @@ public class ComputeService {
         var subscribes = subscribeService.getSubscribes();
         var currentTime = ScheduleTimeStamp.now();
 
+        cancelOverdueTasks(currentTime);
+
+        runTasksFromSubscribes(subscribes, currentTime);
+    }
+
+
+    private void cancelOverdueTasks(ScheduleTimeStamp currentTime) {
+        runningTasks.entrySet().removeIf(entry -> {
+            if (entry.getValue().isDone()) {
+                return true;
+            }
+
+            var task = entry.getKey();
+            var future = entry.getValue();
+
+            if (!task.getInterval().contains(currentTime)) {
+                future.cancel(true);
+                System.out.println("Cancelled task outside interval: " + task);
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+    private void runTasksFromSubscribes(List<SubscribeResponse> subscribes, ScheduleTimeStamp currentTime) {
         for (var subscribe : subscribes) {
             for (var interval : subscribe.getScheduleIntervals()) {
                 if (!interval.contains(currentTime)) {
@@ -104,7 +131,7 @@ public class ComputeService {
                             uploadResult(taskUuid, subscribe.getProjectId(), results.get(taskUuid));
                             Files.deleteIfExists(Path.of(appSettings.taskArchivesDirectory, taskUuid.toString()));
                             results.remove(taskUuid);
-                        } catch (Exception e) {
+                        } catch (IOException e) {
                             e.printStackTrace();
                             System.out.println("Error of upload task result");
                         }
@@ -112,15 +139,13 @@ public class ComputeService {
                 });
             }
         }
-
-        runningTasks.entrySet().removeIf(entry -> entry.getValue().isDone());
     }
 
     private void cancelAllRunningTasks() {
         runningTasks.forEach((key, future) -> {
             if (!future.isDone()) {
                 future.cancel(true);
-                System.out.println("Задача отменена: " + key.getProjectId());
+                System.out.println("Cancel of the task: " + key.getProjectId());
             }
         });
         runningTasks.clear();
@@ -132,7 +157,7 @@ public class ComputeService {
                 throw new InterruptedException();
             }
 
-            System.out.println("Начато вычисление для проекта " + projectId);
+            System.out.println("Start of compute for Project  " + projectId);
 
             var projectDirectory = Paths.get(
                     appSettings.taskArchivesDirectory,
@@ -153,7 +178,7 @@ public class ComputeService {
                 ).block();
             }
 
-            var outputPath = runDockerComputation(
+            var outputPath = computeTaskInTheDocker(
                     projectId,
                     taskUuid.toString(),
                     taskUuid + ".zip",
@@ -163,21 +188,21 @@ public class ComputeService {
 
             return outputPath;
         } catch (InterruptedException e) {
-            System.out.println("⚠️ Задача прервана: " + projectId);
+            System.out.println("Задача прервана: " + projectId);
             Thread.currentThread().interrupt(); // Восстанавливаем флаг
             return null;
         } catch (IOException e) {
-            System.out.println("⚠️ Ошибка чтения файлов " + projectId);
+            System.out.println("Ошибка чтения файлов " + projectId);
             throw new RuntimeException(e);
         } catch (Exception e) {
-            System.err.println("⚠️ Ошибка при обработке проекта "
+            System.err.println("Ошибка при обработке проекта "
                     + projectId + ": " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
 
-    private String runDockerComputation(
+    private String computeTaskInTheDocker(
             Integer projectId,
             String taskUuid,
             String archiveName,
@@ -198,7 +223,7 @@ public class ComputeService {
             var resultArchivePath = taskPath + "/output.zip";
             var dockerfilePath = "/root/";
 
-            // Need after creating from ova
+            // Need after creating from ova image
             sshClient.executeCommand("rm /EMPTY");
 
             sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + taskPath);
@@ -206,25 +231,29 @@ public class ComputeService {
             var containerName = "compute_project_" + projectId;
             dockerManager.startContainer(containerName, taskPath, dockerfilePath, computeResource);
 
-            dockerManager.waitForCompletion(containerName).get();
+            var waitFuture = dockerManager.waitForCompletion(containerName);
 
             try {
-                sshClient.executeCommand("zip -r " + resultArchivePath + " " + resultDir);
-
-                System.out.println("Результаты успешно сформированы.");
-            } catch (Exception e) {
-                System.err.println("Ошибка при обработке результата: " + e.getMessage());
-                e.printStackTrace();
+                waitFuture.get(); // Блокируемся
+            } catch (InterruptedException e) {
+                System.out.println("Поток выполенния получил прерывание — отменяем поток пингования контейнера");
+                waitFuture.cancel(true);
+                Thread.currentThread().interrupt();
             }
 
+            sshClient.executeCommand("zip -r " + resultArchivePath + " " + resultDir);
+
+            System.out.println("Результаты успешно сформированы.");
+
             return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, taskUuid, "output.zip").toString();
-        } catch (Exception e) {
+        } catch (ExecutionException e) {
             e.printStackTrace();
-            throw new RuntimeException("Container was not run");
+            throw new RuntimeException("Error while compute in container");
         }
     }
 
     private void uploadResult(UUID taskUuid, Integer projectId, String outputPath) throws IOException {
+        // TODO Необходимо добавить обработку ошибки загрузки
         var uploadResult = serverClient.uploadResultArchive(
                 taskUuid,
                 projectId,

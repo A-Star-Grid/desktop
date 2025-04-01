@@ -20,50 +20,58 @@ public class SshClient {
         this.port = port;
     }
 
-    public CommandResult executeCommand(String command) throws Exception {
+    public CommandResult executeCommand(String command) {
         JSch jsch = new JSch();
-        Session session = jsch.getSession(username, host, port);
-        session.setPassword(password);
+        Session session;
 
-        Properties config = new Properties();
-        config.put("StrictHostKeyChecking", "no");
+        try {
+            session = jsch.getSession(username, host, port);
 
-        // Современные KEX (Key Exchange)
-        config.put("kex", "curve25519-sha256@libssh.org,curve25519-sha256,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256");
 
-        // Шифрование (Cipher)
-        config.put("cipher.s2c", "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr");
-        config.put("cipher.c2s", "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr");
+            session.setPassword(password);
 
-        // Message Authentication Code (MAC)
-        config.put("mac.s2c", "hmac-sha2-512,hmac-sha2-256");
-        config.put("mac.c2s", "hmac-sha2-512,hmac-sha2-256");
+            Properties config = new Properties();
+            config.put("StrictHostKeyChecking", "no");
 
-        session.setConfig(config);
-        session.connect(10_000);
+            // Современные KEX (Key Exchange)
+            config.put("kex", "curve25519-sha256@libssh.org,curve25519-sha256,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256");
 
-        ChannelExec channel = (ChannelExec) session.openChannel("exec");
-        channel.setCommand(command);
-        channel.setInputStream(null);
+            // Шифрование (Cipher)
+            config.put("cipher.s2c", "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr");
+            config.put("cipher.c2s", "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr");
 
-        InputStream stdout = channel.getInputStream();
-        InputStream stderr = channel.getErrStream();
+            // Message Authentication Code (MAC)
+            config.put("mac.s2c", "hmac-sha2-512,hmac-sha2-256");
+            config.put("mac.c2s", "hmac-sha2-512,hmac-sha2-256");
 
-        channel.connect();
+            session.setConfig(config);
+            session.connect(10_000);
 
-        String output = readStream(stdout);
-        String error = readStream(stderr);
+            ChannelExec channel = (ChannelExec) session.openChannel("exec");
+            channel.setCommand(command);
+            channel.setInputStream(null);
 
-        // Ждем завершения команды и получаем код выхода
-        while (!channel.isClosed()) {
-            Thread.sleep(100);
+            InputStream stdout = channel.getInputStream();
+            InputStream stderr = channel.getErrStream();
+
+            channel.connect();
+
+            String output = readStream(stdout);
+            String error = readStream(stderr);
+
+            // Ждем завершения команды и получаем код выхода
+            while (!channel.isClosed()) {
+                Thread.sleep(100);
+            }
+            int exitCode = channel.getExitStatus();
+
+            channel.disconnect();
+            session.disconnect();
+
+            return new CommandResult(output, error, exitCode);
+        } catch (JSchException | IOException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
-        int exitCode = channel.getExitStatus();
-
-        channel.disconnect();
-        session.disconnect();
-
-        return new CommandResult(output, error, exitCode);
     }
 
     private String readStream(InputStream stream) throws IOException {

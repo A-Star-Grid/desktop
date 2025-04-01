@@ -19,7 +19,7 @@ public class DockerManager {
                                String volumePath,
                                String dockerfilePath,
                                ComputeResource computeResource
-                               ) throws Exception {
+                               ) {
         var buildCommand = "cd " + dockerfilePath + " && docker build -t " + containerName + " .";
         var buildResult = sshClient.executeCommand(buildCommand);
 
@@ -61,12 +61,23 @@ public class DockerManager {
         Runnable checkContainer = new Runnable() {
             @Override
             public void run() {
+                if (future.isCancelled()) {
+                    var result = sshClient.executeCommand("docker kill" + containerName);
+
+                    if(!result.isSuccess()){
+                        System.out.println("Контейнер " + containerName + " не завершил работу принудительно");
+                    }
+
+                    scheduler.shutdownNow();
+                    return;
+                }
+
                 try {
                     var runningContainers = sshClient.executeCommand("docker ps -q -f name=" + containerName);
 
                     if (runningContainers.getStdout().trim().isEmpty()) {
-                        System.out.println("✅ Контейнер " + containerName + " завершил работу.");
-                        future.complete(null); // Завершаем `CompletableFuture`
+                        System.out.println("Контейнер " + containerName + " завершил работу.");
+                        future.complete(null);
                     } else {
                         scheduler.schedule(this, 5, TimeUnit.SECONDS); // Повторяем через 5 секунд
                     }
