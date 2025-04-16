@@ -687,6 +687,8 @@ def upload_result(decoded_token):
 
 # Хранилище статистики (6 дней захардкожено, последний день обновляется динамически)
 USER_STATISTICS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+# Список отмененных тасок
+CANCELLED_TASKS = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
 # Добавляем захардкоженные данные
 HARD_CODED_STATISTICS = [
@@ -757,6 +759,69 @@ def update_user_statistics(username, device_uuid, project_id):
     Update user statistics for completed tasks.
     """
     USER_STATISTICS[username][device_uuid][project_id] += 1
+
+@app.route('/cancel_task', methods=['POST'])
+@token_required
+def cancel_task(decoded_token):
+    """
+    Register a cancelled task
+    ---
+    security:
+      - Bearer: []
+    parameters:
+      - name: device_uuid
+        in: query
+        type: string
+        required: true
+        description: UUID of the device
+      - name: project_id
+        in: query
+        type: integer
+        required: true
+        description: ID of the project
+      - name: task_uuid
+        in: query
+        type: string
+        required: true
+        description: UUID of the task
+    responses:
+      200:
+        description: Task cancellation registered
+      400:
+        description: Missing parameters
+    """
+    username = decoded_token['user']
+    device_uuid = request.args.get('device_uuid')
+    project_id = request.args.get('project_id', type=int)
+    task_uuid = request.args.get('task_uuid')
+
+    if not all([device_uuid, project_id, task_uuid]):
+        return jsonify({'message': 'device_uuid, project_id, and task_uuid are required'}), 400
+
+    CANCELLED_TASKS[username][device_uuid][project_id].append(task_uuid)
+
+    return jsonify({'message': f'Task {task_uuid} for project {project_id} on device {device_uuid} was cancelled'}), 200
+
+
+@app.route('/cancelled_tasks', methods=['GET'])
+@token_required
+def get_cancelled_tasks(decoded_token):
+    """
+    Get cancelled tasks for a user
+    ---
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Cancelled tasks grouped by device and project
+    """
+    username = decoded_token['user']
+    user_cancelled = CANCELLED_TASKS.get(username, {})
+
+    return jsonify({
+        "username": username,
+        "cancelledTasks": user_cancelled
+    }), 200
 
 
 if __name__ == '__main__':
