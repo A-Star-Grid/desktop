@@ -63,6 +63,13 @@ public class ServerClient extends ServerClientBase {
                         + "&device_uuid=" + deviceUUID, String.class);
     }
 
+    public Mono<String> cancelProjectTask(int projectId, UUID deviceUUID, UUID taskUuid) {
+        return postWithRetry(
+                "/cancel_task?project_id=" + projectId
+                        + "&device_uuid=" + deviceUUID
+                        + "&task_uuid=" + taskUuid, String.class);
+    }
+
     public Mono<Void> downloadTaskArchive(UUID taskUUID, String saveDirectory, String fileName) {
         return getFileWithRetry(
                 "/download?task_uuid=" + taskUUID,
@@ -82,8 +89,8 @@ public class ServerClient extends ServerClientBase {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM);
 
         return postFileWithRetry("/upload_result?task_uuid=" + taskUUID.toString() +
-                    "&project_id=" + projectId +
-                    "&device_uuid=" + deviceUUID,
+                        "&project_id=" + projectId +
+                        "&device_uuid=" + deviceUUID,
                 bodyBuilder)
                 .doOnSuccess(response -> System.out.println("📤 Файл успешно загружен: " + filePath))
                 .doOnError(error -> System.err.println("⚠ Ошибка загрузки файла: " + error.getMessage()));

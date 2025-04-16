@@ -85,7 +85,12 @@ public class ComputeService {
 
             if (!task.getInterval().contains(currentTime)) {
                 future.cancel(true);
+                serverClient.cancelProjectTask(
+                        task.getProjectId(),
+                        preferencesStorage.getDeviceUUID(),
+                        task.getTaskUuid()).block();
                 LOGGER.info("Cancelled task outside interval: " + task);
+
                 return true;
             }
 
@@ -100,12 +105,6 @@ public class ComputeService {
                     continue;
                 }
 
-                var key = new ComputingTask(subscribe.getProjectId(), interval);
-
-                if (runningTasks.contains(key)) {
-                    continue;
-                }
-
                 var taskResponse = serverClient.getCurrentTask(
                         subscribe.getProjectId(),
                         preferencesStorage.getDeviceUUID()).block();
@@ -115,6 +114,12 @@ public class ComputeService {
                 }
 
                 var taskUuid = taskResponse.getTaskUuid();
+
+                var key = new ComputingTask(subscribe.getProjectId(), interval, taskUuid);
+
+                if (runningTasks.contains(key)) {
+                    continue;
+                }
 
                 virtualMachineFactory.startVirtualMachineIfNotRunning();
 
@@ -227,7 +232,7 @@ public class ComputeService {
             var dockerManager = new DockerManager(sshClient);
 
             var projectPath = "/mnt/shared/Project" + projectId;
-            var taskPath = projectPath + "/" + taskUuid + "/" + taskUuid;
+            var taskPath = projectPath + "/" + taskUuid;
             var taskArchivePath = projectPath + "/" + archiveName;
             var resultDir = taskPath + "/output";
             var resultArchivePath = taskPath + "/output.zip";
@@ -236,7 +241,7 @@ public class ComputeService {
             // Need after creating from ova image
             sshClient.executeCommand("rm /EMPTY");
 
-            sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + taskPath);
+            sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + projectPath);
 
             var containerName = "compute_project_" + projectId;
             dockerManager.startContainer(containerName, taskPath, dockerfilePath, computeResource);
