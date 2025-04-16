@@ -70,6 +70,11 @@ public class ServerClient extends ServerClientBase {
                         + "&task_uuid=" + taskUuid, String.class);
     }
 
+    public Mono<String> getCancelledTasks() {
+        return getWithRetry(
+                "/cancelled_tasks", String.class);
+    }
+
     public Mono<Void> downloadTaskArchive(UUID taskUUID, String saveDirectory, String fileName) {
         return getFileWithRetry(
                 "/download?task_uuid=" + taskUUID,

@@ -18,7 +18,7 @@ public class Main {
                     throw new RuntimeException(e);
                 }
             });
-            guiThread.start();
+    //        guiThread.start();
 
             org.example.core.Main.main(new String[]{});
         }

@@ -22,4 +22,9 @@ public class StatisticController {
         public ResponseEntity<String> getByWeak() {
             return ResponseEntity.ok(statisticService.getByWeak());
         }
+
+        @GetMapping("/get_canceled_stat")
+        public ResponseEntity<String> getCanceledStat() {
+            return ResponseEntity.ok(statisticService.getCanceledTasksStat());
+        }
 }

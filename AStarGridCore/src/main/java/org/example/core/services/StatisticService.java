@@ -17,4 +17,9 @@ public class StatisticService {
 
         return statistic;
     }
+
+    public String getCanceledTasksStat(){
+        var tasks = serverClient.getCancelledTasks().block();
+        return tasks;
+    }
 }
