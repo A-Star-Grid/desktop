@@ -9,6 +9,8 @@ import org.example.core.models.commands.docker.DockerManager;
 import org.example.core.models.dto.SubscribeResponse;
 import org.example.core.models.shedule.ScheduleTimeStamp;
 import org.example.core.services.settings.ApplicationSettingsService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +34,7 @@ public class ComputeService {
     private final ConcurrentHashMap<ComputingTask, Future<?>> runningTasks = new ConcurrentHashMap<>();
     private final ExecutorService executorService = Executors.newCachedThreadPool();
     private final ConcurrentHashMap<UUID, String> results = new ConcurrentHashMap<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(ComputeService.class);
 
     public ComputeService(AppSettings appSettings,
                           SubscribeService subscribeService,
@@ -49,6 +52,7 @@ public class ComputeService {
 
     @Scheduled(fixedDelayString = "${compute.process.interval}")
     public void process() {
+        LOGGER.debug("POINT1");
         if (!applicationSettingsService.isComputationActive()) {
             cancelAllRunningTasks();
             virtualMachineFactory.stopVirtualMachine();
@@ -59,7 +63,7 @@ public class ComputeService {
 
         var subscribes = subscribeService.getSubscribes();
         var currentTime = ScheduleTimeStamp.now();
-
+        LOGGER.debug("POINT2");
         cancelOverdueTasks(currentTime);
 
         runTasksFromSubscribes(subscribes, currentTime);
@@ -67,7 +71,11 @@ public class ComputeService {
 
 
     private void cancelOverdueTasks(ScheduleTimeStamp currentTime) {
+        LOGGER.debug("POINT3" + runningTasks.size());
+
         runningTasks.entrySet().removeIf(entry -> {
+            LOGGER.debug("POINT5" + entry.getValue().isDone());
+
             if (entry.getValue().isDone()) {
                 return true;
             }
@@ -77,7 +85,7 @@ public class ComputeService {
 
             if (!task.getInterval().contains(currentTime)) {
                 future.cancel(true);
-                System.out.println("Cancelled task outside interval: " + task);
+                LOGGER.info("Cancelled task outside interval: " + task);
                 return true;
             }
 
@@ -133,10 +141,12 @@ public class ComputeService {
                             results.remove(taskUuid);
                         } catch (IOException e) {
                             e.printStackTrace();
-                            System.out.println("Error of upload task result");
+                            LOGGER.error("Error of upload task result");
                         }
                     });
                 });
+
+                LOGGER.debug("POINT4" + runningTasks.size());
             }
         }
     }
@@ -145,7 +155,7 @@ public class ComputeService {
         runningTasks.forEach((key, future) -> {
             if (!future.isDone()) {
                 future.cancel(true);
-                System.out.println("Cancel of the task: " + key.getProjectId());
+                LOGGER.info("Cancel of the task: " + key.getProjectId());
             }
         });
         runningTasks.clear();
@@ -157,7 +167,7 @@ public class ComputeService {
                 throw new InterruptedException();
             }
 
-            System.out.println("Start of compute for Project  " + projectId);
+            LOGGER.info("Start of compute for Project  " + projectId);
 
             var projectDirectory = Paths.get(
                     appSettings.taskArchivesDirectory,
@@ -188,14 +198,14 @@ public class ComputeService {
 
             return outputPath;
         } catch (InterruptedException e) {
-            System.out.println("Задача прервана: " + projectId);
+            LOGGER.info("Задача прервана: " + projectId);
             Thread.currentThread().interrupt(); // Восстанавливаем флаг
             return null;
         } catch (IOException e) {
-            System.out.println("Ошибка чтения файлов " + projectId);
+            LOGGER.error("Ошибка чтения файлов " + projectId);
             throw new RuntimeException(e);
         } catch (Exception e) {
-            System.err.println("Ошибка при обработке проекта "
+            LOGGER.error("Ошибка при обработке проекта "
                     + projectId + ": " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -217,7 +227,7 @@ public class ComputeService {
             var dockerManager = new DockerManager(sshClient);
 
             var projectPath = "/mnt/shared/Project" + projectId;
-            var taskPath = projectPath + "/" + taskUuid;
+            var taskPath = projectPath + "/" + taskUuid + "/" + taskUuid;
             var taskArchivePath = projectPath + "/" + archiveName;
             var resultDir = taskPath + "/output";
             var resultArchivePath = taskPath + "/output.zip";
@@ -236,14 +246,14 @@ public class ComputeService {
             try {
                 waitFuture.get(); // Блокируемся
             } catch (InterruptedException e) {
-                System.out.println("Поток выполенния получил прерывание — отменяем поток пингования контейнера");
+                LOGGER.info("Поток выполенния получил прерывание — отменяем поток пингования контейнера");
                 waitFuture.cancel(true);
                 Thread.currentThread().interrupt();
             }
 
             sshClient.executeCommand("zip -r " + resultArchivePath + " " + resultDir);
 
-            System.out.println("Результаты успешно сформированы.");
+            LOGGER.info("Результаты успешно сформированы.");
 
             return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, taskUuid, "output.zip").toString();
         } catch (ExecutionException e) {
@@ -261,6 +271,6 @@ public class ComputeService {
                 outputPath).block();
 
         Files.deleteIfExists(Path.of(outputPath));
-        System.out.println("Results sent");
+        LOGGER.info("Results sent");
     }
 }

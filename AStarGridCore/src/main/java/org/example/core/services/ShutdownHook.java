@@ -1,10 +1,14 @@
 package org.example.core.services;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PreDestroy;
 
 @Component
 public class ShutdownHook {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ShutdownHook.class);
+
     private VirtualMachineFactory virtualMachineFactory;
 
     public ShutdownHook(VirtualMachineFactory virtualMachineFactory){
@@ -18,7 +22,7 @@ public class ShutdownHook {
             return;
         }
 
-        System.out.println("Stopping of Virtual Machine" +  virtualMachine.get().getName());
+        LOGGER.info("Stopping of Virtual Machine" +  virtualMachine.get().getName());
 
         virtualMachineFactory.stopVirtualMachine();
     }

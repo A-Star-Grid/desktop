@@ -2,6 +2,8 @@ package org.example.core.models.commands.docker;
 
 import org.example.core.clients.SshClient;
 import org.example.core.models.ComputeResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -9,6 +11,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class DockerManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DockerManager.class);
+
     private final SshClient sshClient;
 
     public DockerManager(SshClient sshClient) {
@@ -27,7 +31,7 @@ public class DockerManager {
             throw new RuntimeException("Container not built");
         }
 
-        var runCommand = GetBuildDockerCommand(containerName, volumePath, computeResource);
+        var runCommand = GetRunDockerCommand(containerName, volumePath, computeResource);
 
         var runResult = sshClient.executeCommand(runCommand);
 
@@ -35,10 +39,10 @@ public class DockerManager {
             throw new RuntimeException("Container not started");
         }
 
-        System.out.println("Контейнер " + containerName + " запущен.");
+        LOGGER.info("Container " + containerName + " ran.");
     }
 
-    private static String GetBuildDockerCommand(String containerName, String volumePath, ComputeResource computeResource) {
+    private static String GetRunDockerCommand(String containerName, String volumePath, ComputeResource computeResource) {
         int cpuCores = computeResource.getCpuCores();
         int ramMB = computeResource.getRam(); // ОЗУ в мегабайтах
 
@@ -47,8 +51,9 @@ public class DockerManager {
                 "docker run -d --rm " +
                         "--cpus=%d " +       // Ограничение CPU
                         "--memory=%dm " +    // Ограничение RAM (мегабайты)
+                        "--name %s " +
                         "-v %s:/app %s",
-                cpuCores, ramMB, volumePath, containerName
+                cpuCores, ramMB, containerName, volumePath, containerName
         );
 
         return runCommand;
@@ -62,10 +67,11 @@ public class DockerManager {
             @Override
             public void run() {
                 if (future.isCancelled()) {
-                    var result = sshClient.executeCommand("docker kill" + containerName);
+                    var result = sshClient.executeCommand("docker kill " + containerName);
 
                     if(!result.isSuccess()){
-                        System.out.println("Контейнер " + containerName + " не завершил работу принудительно");
+                        LOGGER.error("Контейнер " + containerName + " не завершил работу принудительно");
+                        LOGGER.error(result.getStdout() + "\n" + result.getStderr());
                     }
 
                     scheduler.shutdownNow();
@@ -76,7 +82,7 @@ public class DockerManager {
                     var runningContainers = sshClient.executeCommand("docker ps -q -f name=" + containerName);
 
                     if (runningContainers.getStdout().trim().isEmpty()) {
-                        System.out.println("Контейнер " + containerName + " завершил работу.");
+                        LOGGER.info("Контейнер " + containerName + " завершил работу.");
                         future.complete(null);
                     } else {
                         scheduler.schedule(this, 5, TimeUnit.SECONDS); // Повторяем через 5 секунд

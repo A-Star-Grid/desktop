@@ -1,6 +1,8 @@
 package org.example.core.models.commands.host_executor;
 
 import org.example.core.models.commands.CommandResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -8,6 +10,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 public abstract class CommandExecutorBase {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CommandExecutorBase.class);
+
     protected abstract ProcessBuilder getProcessBuilder(String command);
 
     public CommandResult executeCommand(String command) throws IOException, InterruptedException {
@@ -20,24 +24,24 @@ public abstract class CommandExecutorBase {
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
-            System.out.println("Command Output:");
+            LOGGER.debug("Command Output:");
             while ((line = reader.readLine()) != null) {
                 output.add(line);
-                System.out.println(line);
+                LOGGER.debug(line);
             }
         }
 
         try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
             String line;
-            System.out.println("Error Output:");
+            LOGGER.debug("Error Output:");
             while ((line = errorReader.readLine()) != null) {
-                System.err.println(line);
+                LOGGER.debug(line);
                 errorOutput.add(line);
             }
         }
 
         int exitCode = process.waitFor();
-        System.out.println("Exit Code: " + exitCode);
+        LOGGER.debug("Exit Code: " + exitCode);
 
         return new CommandResult(output, errorOutput, exitCode);
     }

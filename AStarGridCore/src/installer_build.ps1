@@ -25,3 +25,5 @@ jpackage `
    --win-menu-group "AStarGrid" `
    --icon "Installer/astargrid.ico" `
    --verbose
+
+

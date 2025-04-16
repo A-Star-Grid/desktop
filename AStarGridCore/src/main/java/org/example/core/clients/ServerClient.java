@@ -48,16 +48,6 @@ public class ServerClient extends ServerClientBase {
         return getWithRetry("/user_statistics", String.class);
     }
 
-    public Mono<Void> downloadOvaImage(String saveDirectory, String fileName) {
-        return getFileWithRetry(
-                "/ova/ubuntu_server_for_compute.ova", // URL для скачивания
-                saveDirectory,
-                fileName
-        ).doOnSuccess(v -> System.out.println("✅ OVA образ успешно загружен в " + saveDirectory + "/" + fileName))
-                .doOnError(error -> System.err.println("❌ Ошибка скачивания OVA образа: " + error.getMessage()));
-    }
-
-
     public Mono<String> subscribeToProject(SubscribeTransport subscribeTransport) {
         return postWithRetry("/subscribe", String.class, SubscribeTransport.class, subscribeTransport);
     }
