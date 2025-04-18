@@ -19,9 +19,6 @@ public class AuthService {
         this.preferencesStorage = preferencesStorage;
     }
 
-    /**
-     * Авторизация пользователя и сохранение токенов.
-     */
     public ResponseEntity<String> authenticate(String username, String password) {
         Mono<LoginResponse> authResponseMono = serverClient.login(username, password);
         LoginResponse authResponse = authResponseMono.block();

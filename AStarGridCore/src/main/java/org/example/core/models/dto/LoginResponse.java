@@ -7,6 +7,11 @@ public class LoginResponse {
     public LoginResponse() {
     }
 
+    public LoginResponse(String accessToken, String refreshToken) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+    }
+
     public String getAccessToken() {
         return accessToken;
     }

@@ -54,19 +54,16 @@ public class GuiServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
-            if (path.equals("/")) path = "/index.html"; // Главная страница
+            if (path.equals("/")) path = "/index.html";
             File file = new File(rootDir + path);
 
-            // Если файл не найден, отдаем index.html (для поддержки React Router)
             if (!file.exists() || file.isDirectory()) {
                 file = new File(rootDir + "/index.html");
             }
 
-            // Определяем MIME-тип
             String contentType = Files.probeContentType(Paths.get(file.getPath()));
             if (contentType == null) contentType = "application/octet-stream";
 
-            // Читаем файл и отправляем клиенту
             byte[] bytes = Files.readAllBytes(Paths.get(file.getPath()));
             exchange.getResponseHeaders().set("Content-Type", contentType);
             exchange.sendResponseHeaders(200, bytes.length);
