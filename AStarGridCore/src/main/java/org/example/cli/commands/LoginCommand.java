@@ -6,7 +6,15 @@ import org.example.cli.ServerClient;
 public class LoginCommand implements ConsoleCommand {
     private String username;
     private String password;
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public LoginCommand(){
+        client =  new ServerClient();
+    }
+
+    public LoginCommand(ServerClient client){
+        this.client =  client;
+    }
 
     @Override
     public void setArgs(String[] args) {
@@ -29,5 +37,25 @@ public class LoginCommand implements ConsoleCommand {
 
         String response = client.login(username, password);
         System.out.println(response);
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public ServerClient getClient() {
+        return client;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }

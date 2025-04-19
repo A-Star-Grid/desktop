@@ -21,6 +21,15 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-test</artifactId>
+                <version>3.7.5</version>
+                <scope>test</scope>
+            </dependency>
+
+
+
             <!-- Spring Boot BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>

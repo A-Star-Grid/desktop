@@ -1,6 +1,9 @@
 package org.example.core.models.shedule;
 
 import org.example.core.models.ComputeResource;
+import org.example.core.models.shedule.Day;
+import org.example.core.models.shedule.ScheduleInterval;
+import org.example.core.models.shedule.ScheduleTimeStamp;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

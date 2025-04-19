@@ -1,11 +1,56 @@
 package org.example.core.models;
 
+import org.example.core.clients.ServerClient;
+import org.example.core.configurations.AppSettings;
+import org.example.core.models.ComputeResource;
+import org.example.core.models.dto.SubscribeResponse;
+import org.example.core.models.shedule.ScheduleInterval;
+import org.example.core.services.ComputeService;
+import org.example.core.services.PreferencesStorage;
+import org.example.core.services.SubscribeService;
+import org.example.core.services.VirtualMachineFactory;
+import org.example.core.services.settings.ApplicationSettingsService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class ComputeResourceTest {
+    @Mock
+    SubscribeService subscribeService;
+    @Mock
+    ServerClient serverClient;
+    @Mock
+    PreferencesStorage preferencesStorage;
+    @Mock
+    VirtualMachineFactory virtualMachineFactory;
+    @Mock
+    ApplicationSettingsService applicationSettingsService;
+
+    ComputeService service;
+
+    @BeforeEach
+    void setup() {
+        AppSettings appSettings = new AppSettings();
+        appSettings.taskArchivesDirectory = "/tmp";
+
+        service = new ComputeService(
+                appSettings,
+                subscribeService,
+                serverClient,
+                preferencesStorage,
+                applicationSettingsService,
+                virtualMachineFactory);
+    }
 
     @Test
     @DisplayName("Конструктор без аргументов задаёт нули")
@@ -105,5 +150,24 @@ class ComputeResourceTest {
 
         assertEquals(1, a.getCpuCores());
         assertEquals(30, b.getDiskSpace());
+    }
+
+    @Test
+    void cancelAllRunningTasks_shouldCancelAllFutures() throws Exception {
+        var task = mock(ComputingTask.class);
+        var future = mock(Future.class);
+        when(future.isDone()).thenReturn(false);
+
+        var f = ComputeService.class.getDeclaredField("runningTasks");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        var running = (java.util.concurrent.ConcurrentHashMap<ComputingTask, Future<?>>) f.get(service);
+        running.put(task, future);
+
+        var cancelAllMethod = ComputeService.class.getDeclaredMethod("cancelAllRunningTasks");
+        cancelAllMethod.setAccessible(true);
+        cancelAllMethod.invoke(service);
+
+        verify(future).cancel(true);
     }
 }
