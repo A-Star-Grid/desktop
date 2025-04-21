@@ -6,7 +6,15 @@ public class SetLimitsCommand implements ConsoleCommand {
     private int ram;
     private double cpu;
     private int disk;
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public SetLimitsCommand(){
+        client = new ServerClient();
+    }
+
+    public SetLimitsCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

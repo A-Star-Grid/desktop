@@ -20,7 +20,16 @@ public class SubscribeCommand implements ConsoleCommand {
     private int cpuCores = 1;
     private int diskSpace = 1024;
     private int ram = 512;
-    private final ServerClient client = new ServerClient();
+
+    private final ServerClient client;
+
+    public SubscribeCommand(){
+        client = new ServerClient();
+    }
+
+    public SubscribeCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

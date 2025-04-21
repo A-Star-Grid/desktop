@@ -4,7 +4,15 @@ import org.example.cli.ServerClient;
 
 public class SetCpuCommand implements ConsoleCommand {
     private double cpu;
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public SetCpuCommand(){
+        client = new ServerClient();
+    }
+
+    public SetCpuCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

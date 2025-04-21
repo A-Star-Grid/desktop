@@ -4,7 +4,15 @@ import org.example.cli.ServerClient;
 
 public class UnsubscribeCommand implements ConsoleCommand {
     private int projectId;
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public UnsubscribeCommand(){
+        client = new ServerClient();
+    }
+
+    public UnsubscribeCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

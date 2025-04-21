@@ -3,7 +3,15 @@ package org.example.cli.commands;
 import org.example.cli.ServerClient;
 
 public class ResetSettingsCommand implements ConsoleCommand {
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public ResetSettingsCommand(){
+        client = new ServerClient();
+    }
+
+    public ResetSettingsCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

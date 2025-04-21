@@ -5,7 +5,15 @@ import org.example.cli.ServerClient;
 
 public class SetDiskCommand implements ConsoleCommand {
     private int disk;
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public SetDiskCommand(){
+        client = new ServerClient();
+    }
+
+    public SetDiskCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

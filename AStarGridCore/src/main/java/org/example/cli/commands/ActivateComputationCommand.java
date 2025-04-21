@@ -5,7 +5,15 @@ import org.example.cli.ServerClient;
 
 public class ActivateComputationCommand implements ConsoleCommand {
     private boolean activate;
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public ActivateComputationCommand(){
+        client = new ServerClient();
+    }
+
+    public ActivateComputationCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

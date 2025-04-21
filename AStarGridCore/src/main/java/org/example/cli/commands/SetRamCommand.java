@@ -4,7 +4,15 @@ import org.example.cli.ServerClient;
 
 public class SetRamCommand implements ConsoleCommand {
     private int ram;
-    private final ServerClient client = new ServerClient();
+    private final ServerClient client;
+
+    public SetRamCommand(){
+        client = new ServerClient();
+    }
+
+    public SetRamCommand(ServerClient client){
+        this.client = client;
+    }
 
     @Override
     public void setArgs(String[] args) {

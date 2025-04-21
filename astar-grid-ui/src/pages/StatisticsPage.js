@@ -36,18 +36,6 @@ const StatisticsPage = () => {
         return <p style={{ textAlign: "center", padding: "20px" }}>Загрузка статистики...</p>;
     }
 
-    const combinedDeviceStats = Object.entries(statistics).map(([device, data]) => {
-        const completedTasks = Object.values(data.tasks).reduce((sum, count) => sum + count, 0);
-        const canceledTasksRaw = canceledStats[device] || {};
-        const canceledTasks = Object.values(canceledTasksRaw).reduce((sum, taskList) => sum + taskList.length, 0);
-
-        return {
-            device,
-            completed: completedTasks,
-            canceled: canceledTasks
-        };
-    });
-
     const combinedProjectStats = Object.keys(projects).map(projectId => {
         const pid = Number(projectId);
         let completed = 0;
@@ -71,7 +59,7 @@ const StatisticsPage = () => {
     });
 
     return (
-        <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
             <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Моя статистика</h2>
 
             {Object.entries(statistics).map(([device, data]) => {
@@ -87,52 +75,58 @@ const StatisticsPage = () => {
 
                 return (
                     <div key={device} style={{ marginBottom: "60px", padding: "30px", border: "1px solid #ddd", borderRadius: "8px", background: "#f9f9f9", boxShadow: "0px 4px 10px rgba(0,0,0,0.1)" }}>
-                        <h3 style={{ textAlign: "center", marginBottom: "20px" }}>Устройство: {device}</h3>
+                        <h3 style={{ textAlign: "center", marginBottom: "30px" }}>Устройство: {device}</h3>
 
-                        <div style={{ marginBottom: "50px", padding: "20px", background: "#fff", borderRadius: "8px" }}>
-                            <h4 style={{ textAlign: "center", marginBottom: "15px" }}>Количество выполненных задач</h4>
-                            <ResponsiveContainer width="100%" height={350}>
-                                <BarChart data={formattedData} margin={{ top: 20, right: 30, left: 10, bottom: 60 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="projectName" angle={-25} textAnchor="end" height={80} interval={0} />
-                                    <YAxis label={{ value: "Задачи", angle: -90, position: "insideLeft" }} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="count" fill="#FFA500" name="Количество задач" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                            gap: "30px"
+                        }}>
+                            {/* Выполненные задачи */}
+                            <div style={{ background: "#fff", borderRadius: "8px", padding: "20px" }}>
+                                <h4 style={{ textAlign: "center", marginBottom: "15px" }}>Количество выполненных задач</h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={formattedData} margin={{ top: 20, right: 30, left: 10, bottom: 60 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="projectName" angle={-25} textAnchor="end" height={80} interval={0} />
+                                        <YAxis label={{ value: "Задачи", angle: -90, position: "insideLeft" }} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="count" fill="#FFA500" name="Количество задач" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
 
-                        <div style={{ padding: "20px", background: "#fff", borderRadius: "8px" }}>
-                            <h4 style={{ textAlign: "center", marginBottom: "15px" }}>Общая сумма наград (руб.)</h4>
-                            <ResponsiveContainer width="100%" height={350}>
-                                <BarChart data={formattedData} margin={{ top: 20, right: 30, left: 10, bottom: 60 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="projectName" angle={-25} textAnchor="end" height={80} interval={0} />
-                                    <YAxis label={{ value: "Сумма награды", angle: -90, position: "insideLeft" }} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="totalReward" fill="#FFB347" name="Сумма награды" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                            {/* Сумма наград */}
+                            <div style={{ background: "#fff", borderRadius: "8px", padding: "20px" }}>
+                                <h4 style={{ textAlign: "center", marginBottom: "15px" }}>Общая сумма наград (руб.)</h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={formattedData} margin={{ top: 20, right: 30, left: 10, bottom: 60 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="projectName" angle={-25} textAnchor="end" height={80} interval={0} />
+                                        <YAxis label={{ value: "Сумма награды", angle: -90, position: "insideLeft" }} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="totalReward" fill="#FFB347" name="Сумма награды" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
 
-                        <div style={{ marginTop: "30px", padding: "20px", background: "#fff", borderRadius: "8px" }}>
-                            <h4 style={{ textAlign: "center", marginBottom: "15px" }}>Завершенные / Отмененные выполнения</h4>
-                            <ResponsiveContainer width="100%" height={350}>
-                                <BarChart
-                                    data={[{ device, successful, failed }]}
-                                    margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="device" />
-                                    <YAxis label={{ value: "Количество задач", angle: -90, position: "insideLeft" }} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="successful" fill="#FFA500" name="Успешные" />
-                                    <Bar dataKey="failed" fill="#FF6347" name="Неуспешные" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {/* Успешные / Неуспешные */}
+                            <div style={{ background: "#fff", borderRadius: "8px", padding: "20px" }}>
+                                <h4 style={{ textAlign: "center", marginBottom: "15px" }}>Завершенные / Отмененные выполнения</h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={[{ device, successful, failed }]} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="device" />
+                                        <YAxis label={{ value: "Количество задач", angle: -90, position: "insideLeft" }} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="successful" fill="#FFA500" name="Успешные" />
+                                        <Bar dataKey="failed" fill="#FF6347" name="Неуспешные" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
                     </div>
                 );
