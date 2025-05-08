@@ -17,7 +17,7 @@ public class VmSettingsService {
         this.virtualMachineFactory = virtualMachineFactory;
     }
 
-    public boolean setRamLimit(int ramMB) {
+    public boolean setRamLimit(Integer ramMB) {
         virtualMachineFactory.setVirtualMachineRam(ramMB);
         return preferencesStorage.setRamLimit(ramMB);
     }
@@ -27,7 +27,8 @@ public class VmSettingsService {
         return preferencesStorage.setCpuLimit(cpuCount);
     }
 
-    public boolean setDiskLimit(int diskGB) {
+    public boolean setDiskLimit(Integer diskGB) {
+        virtualMachineFactory.setVirtualMachineDisk(diskGB);
         return preferencesStorage.setDiskLimit(diskGB);
     }
 

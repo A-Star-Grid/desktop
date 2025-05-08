@@ -11,7 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -169,6 +172,31 @@ public class VirtualMachineFactory {
         vmOptional.get().setRam(ram);
 
         return vmOptional;
+    }
+
+    public Optional<VirtualMachine> setVirtualMachineDisk(Integer newSizeGB) {
+        var vmOptional = getVirtualMachineInfoFromHost();
+
+        if (vmOptional.isEmpty() || vmOptional.get().virtualMachineState != VirtualMachineState.POWEROFF) {
+            throw new IllegalStateException("Невозможно изменить диск при запущенной VM");
+        }
+
+        var commandBuilder = VBoxManageCommandBuilder.create();
+        var command = commandBuilder
+                .executable(applicationSettingsService.getVirtualBoxPath())
+                .modifyDisk(vmOptional.get().getDiskPath(), newSizeGB)
+                .toString();
+
+        try {
+            var result = commandExecutor.executeCommand(command);
+            if (!result.isSuccess()) {
+                throw new RuntimeException("Ошибка изменения диска: " + result.getStderr());
+            }
+            vmOptional.get().setDisk(newSizeGB);
+            return vmOptional;
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка выполнения команды", e);
+        }
     }
 
     public void stopVirtualMachine() {
@@ -334,6 +362,7 @@ public class VirtualMachineFactory {
         int disk = 0;
         var sharedFolderPaths = new ArrayList<String>();
         var state = VirtualMachineState.UNKNOWN;
+        String diskPath = null;
 
         for (var line : lines) {
             var parts = line.split("=", 2);
@@ -352,7 +381,8 @@ public class VirtualMachineFactory {
                 case "memory":
                     ram = Integer.parseInt(value);
                     break;
-                case "SATA-0-0":
+                case "\"SATA-0-0\"":
+                    diskPath = value;
                     disk = getDiskSize(value);
                     break;
                 case "VMState":
@@ -366,12 +396,34 @@ public class VirtualMachineFactory {
             }
         }
 
-        return new VirtualMachine("localhost", name, cpu, ram, disk, sharedFolderPaths, state);
+        return new VirtualMachine("localhost", name, cpu, ram, disk, sharedFolderPaths, diskPath, state);
     }
 
-    private static int getDiskSize(String path) {
-        // TODO Realize getting dick space
-        return 1024;
+    private static int getDiskSize(String diskPath) {
+        try {
+            Process process = Runtime.getRuntime().exec(new String[] {
+                    "VBoxManage",
+                    "showmediuminfo",
+                    diskPath
+            });
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.trim().startsWith("Capacity:")) {
+                        String sizeStr = line.split(":")[1].trim().split(" ")[0];
+                        int sizeMB = Integer.parseInt(sizeStr);
+                        return sizeMB / 1024;
+                    }
+                }
+            }
+
+            return 0;
+        } catch (IOException | NumberFormatException e) {
+            return 0;
+        }
     }
 
     public class VirtualMachine {
@@ -382,6 +434,7 @@ public class VirtualMachineFactory {
         private int disk;
         private List<String> sharedFolderPaths;
         private VirtualMachineState virtualMachineState;
+        private String diskPath;
 
         public VirtualMachine(
                 String ip,
@@ -390,6 +443,7 @@ public class VirtualMachineFactory {
                 int ram,
                 int disk,
                 List<String> sharedFolderPaths,
+                String diskPath,
                 VirtualMachineState virtualMachineState) {
             this.ip = ip;
             this.name = name;
@@ -398,6 +452,7 @@ public class VirtualMachineFactory {
             this.disk = disk;
             this.sharedFolderPaths = sharedFolderPaths;
             this.virtualMachineState = virtualMachineState;
+            this.diskPath = diskPath;
         }
 
         public String getIp() {
@@ -414,6 +469,10 @@ public class VirtualMachineFactory {
 
         public int getRam() {
             return ram;
+        }
+
+        public String getDiskPath() {
+            return diskPath;
         }
 
         public int getDisk() {

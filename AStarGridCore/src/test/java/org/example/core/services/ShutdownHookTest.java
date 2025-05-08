@@ -58,7 +58,7 @@ class ShutdownHookTest {
 
             VirtualMachineFactory.VirtualMachine vm =
                     outer.new VirtualMachine("localhost", "vm-test", 2, 2048, 30,
-                            List.of(), VirtualMachineState.RUNNING);
+                            List.of(), "testDiskPath", VirtualMachineState.RUNNING);
 
             VirtualMachineFactory factoryMock = mock(VirtualMachineFactory.class);
             when(factoryMock.getVirtualMachine()).thenReturn(Optional.of(vm));

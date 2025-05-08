@@ -88,6 +88,14 @@ public class VBoxManageCommandBuilder {
         return this;
     }
 
+    public VBoxManageCommandBuilder modifyDisk(String diskPath, Integer newSizeGB) {
+        commandParts.add("modifymedium");
+        commandParts.add(escapeArgument(diskPath));
+        commandParts.add("--resize");
+        commandParts.add(String.valueOf(newSizeGB * 1024)); // Конвертация GB в MB
+        return this;
+    }
+
     public VBoxManageCommandBuilder setRam(String vmName, Integer ram) {
         commandParts.add("modifyvm");
         commandParts.add(escapeArgument(vmName));

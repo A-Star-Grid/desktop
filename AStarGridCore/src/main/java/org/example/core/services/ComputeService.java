@@ -4,6 +4,7 @@ import org.example.core.clients.ServerClient;
 import org.example.core.clients.SshClient;
 import org.example.core.configurations.AppSettings;
 import org.example.core.models.ComputeResource;
+import org.example.core.models.ComputeResult;
 import org.example.core.models.ComputingTask;
 import org.example.core.models.commands.docker.DockerManager;
 import org.example.core.models.dto.SubscribeResponse;
@@ -85,10 +86,7 @@ public class ComputeService {
 
             if (!task.getInterval().contains(currentTime)) {
                 future.cancel(true);
-                serverClient.cancelProjectTask(
-                        task.getProjectId(),
-                        preferencesStorage.getDeviceUUID(),
-                        task.getTaskUuid()).block();
+
                 LOGGER.info("Cancelled task outside interval: " + task);
 
                 return true;
@@ -130,13 +128,19 @@ public class ComputeService {
 
                     return executorService.submit(() -> {
                         if (!results.contains(taskUuid)) {
-                            var resultPath = computeTaskForProject(
+                            var result = computeTaskForProject(
                                     subscribe.getProjectId(),
                                     taskUuid,
                                     interval.getComputeResource());
 
-                            if (resultPath != null) {
-                                results.put(taskUuid, resultPath);
+                            if (result.getSuccess()) {
+                                results.put(taskUuid, result.getResultPath());
+                            } else {
+                                LOGGER.info("Добавляем информацию о сбое на сервер");
+                                serverClient.cancelProjectTask(
+                                        subscribe.getProjectId(),
+                                        preferencesStorage.getDeviceUUID(),
+                                        taskUuid).block();
                             }
                         }
 
@@ -145,8 +149,7 @@ public class ComputeService {
                             Files.deleteIfExists(Path.of(appSettings.taskArchivesDirectory, taskUuid.toString()));
                             results.remove(taskUuid);
                         } catch (IOException e) {
-                            e.printStackTrace();
-                            LOGGER.error("Error of upload task result");
+                            LOGGER.error("Error of upload task result " + e.getMessage());
                         }
                     });
                 });
@@ -166,7 +169,10 @@ public class ComputeService {
         runningTasks.clear();
     }
 
-    private String computeTaskForProject(Integer projectId, UUID taskUuid, ComputeResource computeResource) {
+    private ComputeResult computeTaskForProject(
+            Integer projectId,
+            UUID taskUuid,
+            ComputeResource computeResource) {
         try {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
@@ -201,19 +207,21 @@ public class ComputeService {
 
             Files.deleteIfExists(Path.of(projectDirectory.toString(), taskUuid + ".zip"));
 
-            return outputPath;
+            return new ComputeResult(outputPath, true) ;
         } catch (InterruptedException e) {
             LOGGER.info("Задача прервана: " + projectId);
             Thread.currentThread().interrupt(); // Восстанавливаем флаг
-            return null;
+
+            return new ComputeResult(null, false);
         } catch (IOException e) {
-            LOGGER.error("Ошибка чтения файлов " + projectId);
-            throw new RuntimeException(e);
+            LOGGER.error("Ошибка чтения файлов " + projectId + ": " + e.getMessage());
+
+            return new ComputeResult(null, false);
         } catch (Exception e) {
             LOGGER.error("Ошибка при обработке проекта "
                     + projectId + ": " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException(e);
+
+            return new ComputeResult(null, false);
         }
     }
 
@@ -221,7 +229,7 @@ public class ComputeService {
             Integer projectId,
             String taskUuid,
             String archiveName,
-            ComputeResource computeResource) {
+            ComputeResource computeResource) throws InterruptedException {
         try {
             var sshClient = new SshClient(
                     virtualMachineFactory.createVirtualMachineIfNotExist().getIp(),
@@ -241,7 +249,7 @@ public class ComputeService {
             // Need after creating from ova image
             sshClient.executeCommand("rm /EMPTY");
 
-            sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + projectPath);
+            sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + projectPath + "/" + taskUuid);
 
             var containerName = "compute_project_" + projectId;
             dockerManager.startContainer(containerName, taskPath, dockerfilePath, computeResource);
@@ -254,6 +262,7 @@ public class ComputeService {
                 LOGGER.info("Поток выполенния получил прерывание — отменяем поток пингования контейнера");
                 waitFuture.cancel(true);
                 Thread.currentThread().interrupt();
+                throw e;
             }
 
             sshClient.executeCommand("zip -r " + resultArchivePath + " " + resultDir);
@@ -262,20 +271,21 @@ public class ComputeService {
 
             return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, taskUuid, "output.zip").toString();
         } catch (ExecutionException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error while compute in container");
+            throw new RuntimeException("Error while compute in container " + e.getMessage());
         }
     }
 
     private void uploadResult(UUID taskUuid, Integer projectId, String outputPath) throws IOException {
-        // TODO Необходимо добавить обработку ошибки загрузки
         var uploadResult = serverClient.uploadResultArchive(
                 taskUuid,
                 projectId,
                 preferencesStorage.getDeviceUUID(),
                 outputPath).block();
-
-        Files.deleteIfExists(Path.of(outputPath));
-        LOGGER.info("Results sent");
+        if(uploadResult.isSuccess()){
+            LOGGER.info("Results sent");
+            Files.deleteIfExists(Path.of(outputPath));
+        } else {
+            LOGGER.error("Error of upload result: " + uploadResult.getMessage());
+        }
     }
 }
