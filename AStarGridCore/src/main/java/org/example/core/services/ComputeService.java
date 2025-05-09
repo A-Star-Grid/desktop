@@ -8,6 +8,7 @@ import org.example.core.models.ComputeResult;
 import org.example.core.models.ComputingTask;
 import org.example.core.models.commands.docker.DockerManager;
 import org.example.core.models.dto.SubscribeResponse;
+import org.example.core.models.shedule.ScheduleInterval;
 import org.example.core.models.shedule.ScheduleTimeStamp;
 import org.example.core.services.settings.ApplicationSettingsService;
 import org.slf4j.Logger;
@@ -131,7 +132,8 @@ public class ComputeService {
                             var result = computeTaskForProject(
                                     subscribe.getProjectId(),
                                     taskUuid,
-                                    interval.getComputeResource());
+                                    interval.getComputeResource(),
+                                    interval.getLength());
 
                             if (result.getSuccess()) {
                                 results.put(taskUuid, result.getResultPath());
@@ -172,7 +174,8 @@ public class ComputeService {
     private ComputeResult computeTaskForProject(
             Integer projectId,
             UUID taskUuid,
-            ComputeResource computeResource) {
+            ComputeResource computeResource,
+            Integer timeLimit) {
         try {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
@@ -203,7 +206,8 @@ public class ComputeService {
                     projectId,
                     taskUuid.toString(),
                     taskUuid + ".zip",
-                    computeResource);
+                    computeResource,
+                    timeLimit);
 
             Files.deleteIfExists(Path.of(projectDirectory.toString(), taskUuid + ".zip"));
 
@@ -229,31 +233,32 @@ public class ComputeService {
             Integer projectId,
             String taskUuid,
             String archiveName,
-            ComputeResource computeResource) throws InterruptedException {
+            ComputeResource computeResource,
+            Integer timeLimit) throws InterruptedException {
         try {
             var sshClient = new SshClient(
                     virtualMachineFactory.createVirtualMachineIfNotExist().getIp(),
                     8022,
                     "root",
                     "1234");
-
-            var dockerManager = new DockerManager(sshClient);
-
-            var projectPath = "/mnt/shared/Project" + projectId;
-            var taskPath = projectPath + "/" + taskUuid;
-            var taskArchivePath = projectPath + "/" + archiveName;
-            var resultDir = taskPath + "/output";
-            var resultArchivePath = taskPath + "/output.zip";
-            var dockerfilePath = "/root/";
-
             // Need after creating from ova image
             sshClient.executeCommand("rm /EMPTY");
 
-            sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + projectPath + "/" + taskUuid);
+            var projectPath = "/mnt/shared/Project" + projectId;
+
+            // Task paths
+            var taskPath = projectPath + "/" + taskUuid;
+            var taskArchivePath = projectPath + "/" + archiveName;
+
+            createLimitedTaskDirectory(sshClient, taskPath, computeResource.getDiskSpace(), timeLimit);
+
+            sshClient.executeCommand("unzip -o " + taskArchivePath + " -d " + taskPath);
 
             var containerName = "compute_project_" + projectId;
-            dockerManager.startContainer(containerName, taskPath, dockerfilePath, computeResource);
 
+            var dockerfilePath = "/root/";
+            var dockerManager = new DockerManager(sshClient);
+            dockerManager.startContainer(containerName, taskPath, dockerfilePath, computeResource);
             var waitFuture = dockerManager.waitForCompletion(containerName);
 
             try {
@@ -265,15 +270,65 @@ public class ComputeService {
                 throw e;
             }
 
+            // Result paths
+            var resultDir = taskPath + "/output";
+            var resultArchivePath = projectPath + "/output" + taskUuid + ".zip";
+
             sshClient.executeCommand("zip -r " + resultArchivePath + " " + resultDir);
 
             LOGGER.info("Результаты успешно сформированы.");
 
-            return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, taskUuid, "output.zip").toString();
+            return Path.of(appSettings.taskArchivesDirectory, "Project" + projectId, "output" + taskUuid + ".zip").toString();
         } catch (ExecutionException e) {
             throw new RuntimeException("Error while compute in container " + e.getMessage());
         }
     }
+
+    private void createLimitedTaskDirectory(SshClient sshClient,
+                                            String taskPath,
+                                            Integer diskSpaceGb,
+                                            Integer timeLimit) {
+        try {
+            // Если директория уже смонтирована — ничего не делать
+            var checkMountCmd = "mount | grep -q '" + taskPath + "'";
+            var result = sshClient.executeCommand(checkMountCmd);
+
+            if (result.isSuccess()) {
+                LOGGER.info("Каталог уже смонтирован, пропускаем: " + taskPath);
+                return;
+            }
+
+            // Создаём временный файл-образ (если его нет)
+            var imgPath = taskPath + ".img";
+            sshClient.executeCommand("mkdir -p " + taskPath);
+            sshClient.executeCommand("test -f " + imgPath + " || truncate -s " + diskSpaceGb + "G " + imgPath);
+
+            // Находим свободный loop-устройство и монтируем образ
+            sshClient.executeCommand("LOOP=$(losetup -f) && losetup $LOOP " + imgPath +
+                    " && mkfs.ext4 -F $LOOP && mount $LOOP " + taskPath + " && echo $LOOP > " + taskPath + "/.loopdev");
+
+            LOGGER.info("Ограниченный диск создан и смонтирован: " + taskPath);
+
+            // Планируем удаление через timeout
+            String cleanupScript = String.join(" && ",
+                    "sleep " + (timeLimit * 60),
+                    "LOOP=$(cat " + taskPath + "/.loopdev)",
+                    "umount " + taskPath,
+                    "losetup -d $LOOP",
+                    "rm -rf " + imgPath,
+                    "rm -rf " + taskPath
+            );
+
+            // Запускаем фоновый процесс очистки
+            sshClient.executeCommand("nohup bash -c '" + cleanupScript + "' >/dev/null 2>&1 &");
+
+            LOGGER.info("Фоновый таймер удаления директории через " + timeLimit + " минут запущен.");
+        } catch (Exception e) {
+            LOGGER.error("Не удалось создать ограниченный каталог: " + e.getMessage());
+            throw new RuntimeException("createLimitedTaskDirectory failed", e);
+        }
+    }
+
 
     private void uploadResult(UUID taskUuid, Integer projectId, String outputPath) throws IOException {
         var uploadResult = serverClient.uploadResultArchive(

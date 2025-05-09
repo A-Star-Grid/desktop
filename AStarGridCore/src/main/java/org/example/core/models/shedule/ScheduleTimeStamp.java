@@ -22,8 +22,6 @@ public class ScheduleTimeStamp implements Comparable<ScheduleTimeStamp>{
         return Integer.compare(this.time, other.time);
     }
 
-
-
     public static ScheduleTimeStamp now() {
         var now = LocalDateTime.now(ZoneId.systemDefault());
         var dayOfWeek = now.getDayOfWeek();

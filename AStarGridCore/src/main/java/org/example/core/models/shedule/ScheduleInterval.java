@@ -14,6 +14,11 @@ public class ScheduleInterval {
         return start.compareTo(timestamp) <= 0 && end.compareTo(timestamp) > 0;
     }
 
+    public Integer getLength(){
+        return ((end.getDay().ordinal() + 1) * 24 * 60 * 60 + end.getTime())
+                - ((start.getDay().ordinal() + 1) * 24 * 60 * 60 + start.getTime());
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o)
